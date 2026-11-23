@@ -42,6 +42,10 @@ _Avoid_: prognoza (jako określenie odczytu szacunkowego)
 Zakres dat, za który Faktura rozlicza energię.
 _Avoid_: miesiąc (gdy okres nie jest miesiącem kalendarzowym)
 
+**Okres widoku**:
+Zakres dat wybrany do oglądania: cały okres, rok, kwartał albo miesiąc. Nie musi pokrywać się z Okresem rozliczeniowym żadnej Faktury.
+_Avoid_: okres (bez doprecyzowania, gdy chodzi o wybór w widoku)
+
 **Pozycja faktury**:
 Jedna linia kosztu na Fakturze: ilość, cena jednostkowa, kwota netto i brutto.
 _Avoid_: wiersz, opłata (jako ogólne słowo)

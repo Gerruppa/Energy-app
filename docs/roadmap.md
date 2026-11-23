@@ -36,6 +36,7 @@ F1 + F1a + F0 + F2 + F3 w osobnych widokach PPE. Ustalenia z grillowania (XI 202
 - Rodzice korzystają z aplikacji u Ciebie albo z własnej kopii repozytorium na swoim komputerze; aplikacja działa po skopiowaniu folderu, bez serwera, start dwuklikiem w `Start.bat`. Każda kopia ma własne `data/` i sama decyduje, które PPE monitoruje; Faktury można wgrywać w każdej kopii.
 - Punkty poboru dodaje się w aplikacji (pierwsze uruchomienie i później w ustawieniach), nie w kodzie — szczegóły w F8.
 - „Faktura po ludzku” w wersji do druku (F7) wchodzi do MVP.
+- Przełącznik Okresu widoku i pełny widok Faktury (F9) wchodzą do MVP.
 - Kolejność pracy: `/prototype` (lokalnie, prawdziwe liczby, poza gitem) → `/to-spec` → `/to-tickets`.
 
 ## Otwarte pytania ogólne
@@ -115,6 +116,16 @@ Kreator przy pierwszym uruchomieniu i dodawanie kolejnych PPE w ustawieniach. Do
 - Kreator zaczyna od Faktury: „Dodaj punkt poboru” → wgraj dowolną Fakturę → aplikacja odczytuje i pokazuje do potwierdzenia numer PPE, adres, grupę taryfową, moc umowną i rodzaj rozliczenia (net-metering = fotowoltaika, Współczynnik opustu) → użytkownik podaje tylko nazwę, ikonę (dom / mieszkanie / inne) i czy ładuje tu auto → wgraj pozostałe Faktury → Przegląd.
 - Zakładki wynikają z danych PPE: Magazyn energii gdy Faktura mówi „net-metering”; Dzień po dniu po wgraniu pierwszego eksportu eLicznika (wcześniej podpowiedź w ustawieniach PPE); Auto po włączeniu w ustawieniach PPE.
 - Faktura z nieznanego PPE przy zwykłym imporcie: pytanie „To Faktura z nowego punktu poboru (adres…). Dodać go?” → kreator od kroku z nazwą. Usunięcie PPE w ustawieniach usuwa jego dane z tej kopii, po potwierdzeniu.
+
+## F9. Okresy i widok Faktury
+
+**Status:** gotowe do specyfikacji (MVP)
+
+- Przełącznik Okresu widoku pod nazwą PPE: Cały okres · Rok · Kwartał · Miesiąc, strzałki ◀ ▶ do sąsiednich okresów; działa we wszystkich zakładkach. Kafelki ze stanem (Magazyn energii, Saldo) pokazują stan na koniec Okresu widoku; rok do roku = ten sam Okres widoku rok wcześniej.
+- Okres widoku wycięty z dłuższej Faktury oznaczony ≈ ze zdaniem, z której Faktury wyliczony; okresy pokryte miesięcznymi Fakturami są dokładne.
+- Widok Faktury (z listy, osi czasu, strzałkami poprzednia / następna): nagłówek (numer, data wystawienia, okres, rodzaj dokumentu i co koryguje, Podstawa rozliczenia, taryfa, moc, rodzaj rozliczenia); liczniki (stany, data, Typ odczytu); Rozliczenie OZE (pobrane, oddane, Magazyn energii start, ×0,8, przybyło, Udział Sprzedawcy, koniec); 5 grup kosztów z opisem i rozwijana pełna lista Pozycji faktury jak w oryginale (z podokresami); rozliczenie (Wynik, Prognozy/wpłaty, do zapłaty/zwrotu, Saldo, akcyza, Cena średnia kWh); harmonogram Prognoz; ten sam okres rok wcześniej (także wartość Taurona); „Otwórz oryginał PDF”.
+- Widok Faktury = strona „Faktura po ludzku” (F7); na wydruku pozycje zwinięte do 5 grup na 1 stronie A4, pełna lista Pozycji opcjonalnie na 2. stronie.
+- Miesiąc i Faktura połączone linkami: widok miesiąca → „Faktura za ten okres” (lub „część Faktury rocznej …”), widok Faktury → „pokaż ten okres w Przeglądzie”.
 
 ## Pomysły
 
