@@ -29,7 +29,7 @@ Prefiks numeru wskazuje PPE: Dom ma inną serię niż Mieszkanie. Numer faktury 
 - **Długość okresu:** Dom — okresy roczne (do XI 2025), potem jeden 9-miesięczny (XII 2025–VIII 2026), od IX 2026 miesięczne. Mieszkanie — okresy ok. 6-miesięczne z miesięcznymi prognozami. Porównania wymagają przeliczenia na dzień lub rozłożenia na miesiące.
 - **Pozycja w kilku wierszach:** gdy w trakcie okresu zmienia się cena (np. 1 stycznia) lub stawka VAT (5% → 23% w 2024), ten sam składnik pojawia się w kilku wierszach z innymi cenami i ilościami. Pozycja faktury = (składnik, podokres, cena, VAT).
 - **Ilość 0 przy pokryciu z Banku kWh:** energia czynna, składnik zmienny i stawka jakościowa mają ilość 0, gdy pobór pokrył Opust; opłata OZE i kogeneracyjna są naliczane od całej energii pobranej.
-- **Liczby:** format polski (`3 308,35`, `0,50200`), kwoty ujemne przy zwrotach, akcyza potrafi mieć ujemne kWh w rozliczeniu prognoz.
+- **Liczby:** format polski (`1 234,56`, `0,50200`), kwoty ujemne przy zwrotach, akcyza potrafi mieć ujemne kWh w rozliczeniu prognoz.
 - **Tekst warstwowy:** `pdftotext -layout` miesza kolumny w starym układzie; parser powinien czytać tabele po współrzędnych (pdfplumber), a nowy układ da się czytać wierszami.
 - **Bank kWh nie sumuje się wprost:** stan „Energia z magazynu” na początku okresu bywa niższy niż stan końcowy z poprzedniej faktury (spadek o kilkadziesiąt kWh między kolejnymi miesiącami): różnica to porcje, które wygasły po 12 miesiącach. Faktura nie podaje wygasania wprost.
 - **Duplikaty plików:** te same PDF-y pod różnymi nazwami (`_1`, `-1`); import rozpoznaje je po hashu.
