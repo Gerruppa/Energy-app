@@ -13,7 +13,7 @@ Dokument Tauron rozliczający jeden PPE za jeden Okres rozliczeniowy.
 _Avoid_: rachunek
 
 **Faktura korygująca**:
-Faktura zmieniająca kwoty lub ilości z wcześniejszej Faktury.
+Faktura zmieniająca kwoty lub ilości z wcześniejszej Faktury; jej część „należało policzyć” zastępuje rozliczenie korygowanej Faktury, także gdy tej nie ma w danych.
 _Avoid_: korekta (bez słowa faktura)
 
 **Nota obciążeniowa**:
@@ -30,6 +30,10 @@ _Avoid_: nadpłata/niedopłata jako osobne pojęcia
 
 **Typ odczytu**:
 Sposób ustalenia stanu licznika na Fakturze: zdalny, fizyczny, odbiorcy albo szacunkowy.
+
+**Podstawa rozliczenia**:
+Na czym opierają się liczby danego okresu: odczyt rzeczywisty (Typ odczytu zdalny, fizyczny lub odbiorcy), odczyt szacunkowy albo Prognoza. Tylko dwie pierwsze wchodzą do Kosztu okresu i Energii pobranej.
+_Avoid_: prognoza (jako określenie odczytu szacunkowego)
 
 **Okres rozliczeniowy**:
 Zakres dat, za który Faktura rozlicza energię.
@@ -90,8 +94,12 @@ _Avoid_: rabat, zniżka
 
 ## Koszty
 
+**Koszt okresu**:
+Wynik rozliczenia brutto Faktury (sprzedaż + dystrybucja) pomniejszony o bonifikaty z Not obciążeniowych dotyczących tego Okresu rozliczeniowego. Kwoty w dashboardzie są brutto.
+_Avoid_: do zapłaty, rachunek (to kwestie Salda, nie kosztu)
+
 **Cena średnia kWh**:
-Kwota brutto Faktury podzielona przez Energię pobraną w jej Okresie rozliczeniowym.
+Koszt okresu podzielony przez Energię pobraną w tym Okresie rozliczeniowym.
 
 **Cena krańcowa kWh**:
 Koszt brutto jednej dodatkowej kWh Energii pobranej w danym PPE i Okresie rozliczeniowym: suma Składników zmiennych na kWh, bez Składników stałych.

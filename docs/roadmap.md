@@ -8,6 +8,27 @@ Statusy: **pomysł** → **do doprecyzowania** → **gotowe do implementacji** �
 - Oba PPE: grupa taryfowa G11. Moc umowna: Dom 13 kW, Mieszkanie 5 kW.
 - Historia w `References/`: Dom od XII 2022, Mieszkanie od IX 2024.
 
+## Pierwsza wersja (MVP)
+
+F1 + F1a + F0 + F2 + F3 z paskiem KPI. Ustalenia z grillowania (XI 2026):
+- Import obu układów faktur (stary 2022–2025 i nowy), Faktur korygujących i Not obciążeniowych.
+- Faktura trafia do bazy tylko, gdy sumy się zgadzają: pozycje = Wynik rozliczenia, Bank kWh początek + przyrost − odbiór = koniec (tolerancja bilansowania). Spadek Banku kWh między kolejnymi Fakturami zapisywany jako Wygaśnięcie.
+- Upload wielu PDF-ów naraz; PPE rozpoznawany z faktury, nazwa nadawana raz; duplikaty pomijane; podsumowanie: zaimportowane / duplikaty / odrzucone z powodem.
+- Rozkład na miesiące: kWh i Składniki zmienne proporcjonalnie do dni, Składniki stałe po równo na miesiące okresu; miesiące z rozkładu oznaczone na wykresach.
+- Bank kWh: porcja wygasa 12 miesięcy po końcu okresu, w którym ją oddano; odbiór zdejmowany od najstarszej porcji; stan łączny zawsze z Faktury, podział na porcje i daty Wygaśnięcia oznaczone jako szacunek.
+- Pasek KPI (Dom / Mieszkanie / suma): Saldo, Bank kWh i Wygaśnięcia w 3 mies., Koszt okresu ostatniej Faktury, koszt 12 mies., Cena średnia kWh 12 mies., następna Prognoza; zmiana rok do roku.
+- Saldo = ostatni stan konta z Faktury; dla starszych okresów tylko „do zapłaty / do zwrotu”; bez ręcznego wpisywania wpłat.
+- Cena średnia kWh liczona według GLOSSARY, nie przepisywana z Faktury (Tauron pomija kWh pokryte Opustem).
+- Każda liczba ma źródło (Faktura, strona, link do PDF z archiwum); liczby wyliczone mają opis sposobu wyliczenia.
+- Koszty w 5 grupach: Energia; Dystrybucja zmienna (składnik zmienny + jakościowa); Opłaty od kWh (OZE + kogeneracyjna); Opłata mocowa; Opłaty stałe (składnik stały, przejściowa, abonamentowa). Akcyza tylko informacyjnie. Pełne Pozycje faktury w szczegółach.
+- F2 zawiera historię cen jednostkowych w czasie.
+- Rok do roku liczony z własnej historii; wartość „analogiczny okres” z Faktury jako zapas przy braku historii i jako kontrola przy różnicy > 5%.
+- Strona danych: oś czasu Faktur na PPE (luki, nakładanie, korekty, odczyty szacunkowe), usunięcie Faktury, przebudowa bazy z archiwum.
+- Podstawa rozliczenia widoczna przy każdej Fakturze i każdym okresie (tabela, oś czasu, podpowiedzi wykresów): 🟢 odczyt rzeczywisty, 🟡 odczyt szacunkowy, ⚪ Prognoza.
+- Prognozy z harmonogramów na wykresach jako przerywana linia obok rzeczywistości; nigdy nie wchodzą do Kosztu okresu ani kWh.
+- Okres rozliczony na odczycie szacunkowym zostaje oznaczony 🟡 także po wyrównaniu kolejną Fakturą; strona danych pokazuje, ile z ostatnich 12 miesięcy opierało się na szacunku.
+- Kolejność pracy: `/prototype` (lokalnie, prawdziwe liczby, poza gitem) → `/to-spec` → `/to-tickets`.
+
 ## Otwarte pytania ogólne
 
 - Jaka jest moc instalacji PV i od kiedy działa?

@@ -49,7 +49,9 @@ Głęboki moduł z jednym wejściem: `import_file(path) -> ImportResult`. W śro
 2. wybiera parser (adapter) dla tego rodzaju,
 3. zwraca obiekty domeny z odnośnikiem do źródła (plik, strona) oraz listę ostrzeżeń, gdy czegoś nie rozpoznał.
 
-Seam leży między rozpoznaniem a parserem: gdy Tauron zmieni układ faktury, dochodzi nowy parser obok starego, a reszta aplikacji się nie zmienia. Parser faktur testowany jest na fixture'ach w `tests/fixtures/`.
+Seam leży między rozpoznaniem a parserem: gdy Tauron zmieni układ faktury, dochodzi nowy parser obok starego, a reszta aplikacji się nie zmienia.
+
+Każdy parser faktur ma dwa etapy (ADR 0005): cienki adapter PDF → surowe wiersze i tabele (pdfplumber) oraz głęboki moduł surowe wiersze → Faktura. Głęboki moduł testowany jest na zanonimizowanych zrzutach wierszy w `tests/fixtures/`. Po parsowaniu Faktura przechodzi kontrolę sum (pozycje = Wynik rozliczenia, bilans Banku kWh); niezgodna jest odrzucana z opisem przyczyny.
 
 ### storage
 
