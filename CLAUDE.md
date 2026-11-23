@@ -32,6 +32,20 @@ Dane wchodzą wsadowo, co 1–4 tygodnie: PDF-y faktur oraz eksport z eLicznika.
 - Każda wartość odczytana z faktury niesie swoje źródło (numer faktury, strona), żeby użytkownik mógł ją sprawdzić w PDF-ie.
 - Faktura jest źródłem prawdy dla kwot, eLicznik dla profilu godzinowego kWh (ADR 0003).
 
+## Agent skills
+
+### Issue tracker
+
+Zadania i specyfikacje to GitHub Issues w repo Energy-app (gh CLI). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Pięć domyślnych ról: needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` i `docs/adr/` w katalogu głównym. See `docs/agents/domain.md`.
+
 ## Skille
 
 | Kiedy | Skill |
