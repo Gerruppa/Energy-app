@@ -1,0 +1,16 @@
+# Dane osobowe użytkownika (ADR 0004)
+References/
+data/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Narzędzia
+.idea/
+.vscode/
+.claude/settings.local.json
