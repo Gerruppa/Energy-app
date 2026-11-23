@@ -5,7 +5,7 @@ Koszty i zużycie energii elektrycznej w dwóch punktach poboru rozliczanych prz
 ## Punkty i faktury
 
 **PPE (punkt poboru energii)**:
-Miejsce dostarczania energii z własnym licznikiem i numerem PPE. W projekcie są dwa: Dom i Mieszkanie.
+Miejsce dostarczania energii z własnym licznikiem i numerem PPE, dodane w aplikacji pod nazwą nadaną przez użytkownika (dziś: Dom i Mieszkanie).
 _Avoid_: licznik, punkt, lokalizacja
 
 **Faktura**:
@@ -25,8 +25,11 @@ Zaliczkowa płatność za przyszły okres, wyliczona przez Tauron z przewidywane
 _Avoid_: blankiet, rata
 
 **Saldo**:
-Stan rozrachunku z Tauronem dla PPE po Fakturze: nadpłata (Tauron winien) lub niedopłata (do dopłaty).
+Stan rozrachunku z Tauronem dla jednego PPE po Fakturze: nadpłata (Tauron winien) lub niedopłata (do dopłaty). Saldo jednego PPE nie przechodzi na inny.
 _Avoid_: nadpłata/niedopłata jako osobne pojęcia
+
+**Brakująca Faktura**:
+Faktura za Okres rozliczeniowy, który już się skończył, a której po zwykłym czasie wystawienia (ok. 2 tygodnie) nie ma w danych.
 
 **Typ odczytu**:
 Sposób ustalenia stanu licznika na Fakturze: zdalny, fizyczny, odbiorcy albo szacunkowy.
@@ -64,6 +67,10 @@ _Avoid_: eksport, produkcja
 Cała energia zużyta w PPE: Energia pobrana plus autokonsumpcja z fotowoltaiki. Faktury pokazują tylko Energię pobraną.
 _Avoid_: pobór
 
+**Produkcja**:
+Cała energia wytworzona przez fotowoltaikę: Energia oddana plus autokonsumpcja. Ani Faktury, ani eLicznik jej nie pokazują; znana tylko z danych falownika.
+_Avoid_: produkcja jako nazwa Energii oddanej
+
 **Profil godzinowy**:
 Energia pobrana i oddana w PPE godzina po godzinie, z eksportu eLicznika.
 
@@ -76,20 +83,20 @@ _Avoid_: net-billing (inny system, rozliczany w PLN; nie dotyczy projektu)
 **Współczynnik opustu**:
 Ile kWh do odebrania daje 1 kWh Energii oddanej. W projekcie 0.8.
 
-**Bank kWh**:
-Pula kWh do odebrania (Energia oddana × Współczynnik opustu), z datą wygaśnięcia dla każdej porcji; Tauron nazywa ją na Fakturze „magazynem energii”.
-_Avoid_: magazyn, depozyt (depozyt prosumencki to pojęcie z net-billingu)
+**Magazyn energii**:
+Pula kWh do odebrania (Energia oddana × Współczynnik opustu), z datą wygaśnięcia dla każdej porcji; nazwa taka jak na Fakturze. To rozliczenie w Tauronie, nie fizyczne urządzenie.
+_Avoid_: Bank kWh, depozyt (depozyt prosumencki to pojęcie z net-billingu), bateria (zarezerwowane dla fizycznego magazynu, gdyby się pojawił)
 
 **Wygaśnięcie**:
-Utrata porcji Banku kWh, której nie odebrano w ciągu 12 miesięcy.
+Utrata porcji Magazynu energii, której nie odebrano w ciągu 12 miesięcy.
 _Avoid_: przepadek
 
 **Udział Sprzedawcy**:
-Część Energii oddanej, która nie trafia do Banku kWh (1 − Współczynnik opustu, czyli 20%).
+Część Energii oddanej, która nie trafia do Magazynu energii (1 − Współczynnik opustu, czyli 20%).
 _Avoid_: strata, prowizja
 
 **Opust**:
-kWh z Banku kWh odliczone od Energii pobranej na Fakturze.
+kWh z Magazynu energii odliczone od Energii pobranej na Fakturze.
 _Avoid_: rabat, zniżka
 
 ## Koszty

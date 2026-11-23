@@ -36,7 +36,7 @@ Zależności płyną w jedną stronę: `app → features → storage → domain`
 
 Słownik projektu w kodzie: `MeteringPoint`, `Invoice`, `InvoiceLine`, `BillingPeriod`, `HourlyReading`, `ChargingSession`. Obliczenia, które nie potrzebują I/O, mieszkają tutaj:
 
-- `NetMeteringBank`: księga Banku kWh. Porcje Energii oddanej × Współczynnik opustu z datą wygaśnięcia, Opusty zdejmowane od najstarszej porcji. Interfejs: zbuduj z historii Faktur, zapytaj o stan na dzień i porcje wygasające w zadanym oknie.
+- `EnergyStore`: księga Magazynu energii. Porcje Energii oddanej × Współczynnik opustu z datą wygaśnięcia, Opusty zdejmowane od najstarszej porcji. Interfejs: zbuduj z historii Faktur, zapytaj o stan na dzień i porcje wygasające w zadanym oknie.
 - Ceny: Cena średnia kWh i Cena krańcowa kWh dla Faktury.
 
 Pozycje faktury są klasyfikowane do kategorii z `GLOSSARY.md` (Składnik zmienny / Składnik stały i ich rodzaje). Klasyfikacja jest częścią domeny, więc nowa nazwa pozycji na fakturze wymaga zmiany w jednym miejscu.
@@ -51,7 +51,7 @@ Głęboki moduł z jednym wejściem: `import_file(path) -> ImportResult`. W śro
 
 Seam leży między rozpoznaniem a parserem: gdy Tauron zmieni układ faktury, dochodzi nowy parser obok starego, a reszta aplikacji się nie zmienia.
 
-Każdy parser faktur ma dwa etapy (ADR 0005): cienki adapter PDF → surowe wiersze i tabele (pdfplumber) oraz głęboki moduł surowe wiersze → Faktura. Głęboki moduł testowany jest na zanonimizowanych zrzutach wierszy w `tests/fixtures/`. Po parsowaniu Faktura przechodzi kontrolę sum (pozycje = Wynik rozliczenia, bilans Banku kWh); niezgodna jest odrzucana z opisem przyczyny.
+Każdy parser faktur ma dwa etapy (ADR 0005): cienki adapter PDF → surowe wiersze i tabele (pdfplumber) oraz głęboki moduł surowe wiersze → Faktura. Głęboki moduł testowany jest na zanonimizowanych zrzutach wierszy w `tests/fixtures/`. Po parsowaniu Faktura przechodzi kontrolę sum (pozycje = Wynik rozliczenia, bilans Magazynu energii); niezgodna jest odrzucana z opisem przyczyny.
 
 ### storage
 
@@ -64,10 +64,10 @@ Import jest idempotentny: Faktura identyfikowana numerem faktury, odczyt godzino
 Każda funkcja dashboardu to pakiet `features/<nazwa>/` z dwiema częściami:
 
 - `analysis.py`: czyste funkcje `(Repository, Filters) → wynik`, testowane bez Streamlita na adapterze w pamięci;
-- `page.py`: obiekt `Feature` (id, tytuł, kolejność, `render(context)`), który rysuje wynik analizy.
+- `page.py`: obiekt `Feature` (id, tytuł, kolejność, `is_available(ppe)`, `render(context)`), który rysuje wynik analizy. `is_available` decyduje, czy zakładka pojawia się dla danego PPE (np. Magazyn energii tylko przy net-meteringu, Dzień po dniu tylko z danymi eLicznika).
 
-`Filters` to wybór PPE (Dom / Mieszkanie / oba) i zakres dat, ustawiany raz w pasku bocznym i wspólny dla wszystkich funkcji. Funkcje rejestrują się w `features/__init__.py`; dodanie funkcji to nowy pakiet plus jedna linia w rejestrze, bez zmian w `app` ani w innych funkcjach.
+`Filters` to jeden PPE i zakres dat; widok zawsze dotyczy jednego PPE, bez sum ani porównań między PPE. PPE, ich nazwy i ustawienia (np. ładowanie auta) są danymi w `storage`, dodawanymi przez kreator, nie stałymi w kodzie. Funkcje rejestrują się w `features/__init__.py`; dodanie funkcji to nowy pakiet plus jedna linia w rejestrze, bez zmian w `app` ani w innych funkcjach.
 
 ### app
 
-Powłoka Streamlit: pasek boczny z `Filters`, strona importu (upload → `ingest` → `storage`, pokazuje ostrzeżenia parsera), strony z rejestru `features`. Nie zawiera logiki obliczeń.
+Powłoka Streamlit: wybór PPE (adres `?ppe=…`), kreator dodawania PPE, strona importu (upload → `ingest` → `storage`, pokazuje ostrzeżenia parsera i pyta o nowy PPE), zakładki z rejestru `features` dostępne dla wybranego PPE, styl druku dla „Faktury po ludzku”. Uruchamiana dwuklikiem w `Start.bat`. Nie zawiera logiki obliczeń.

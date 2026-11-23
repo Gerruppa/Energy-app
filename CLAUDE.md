@@ -9,7 +9,7 @@ Dane wchodzą wsadowo, co 1–4 tygodnie: PDF-y faktur oraz eksport z eLicznika.
 ## Mapa dokumentów
 
 - `docs/architecture.md`: moduły, seamy, przepływ danych. Przeczytaj przed dodaniem, przeniesieniem lub zmianą interfejsu modułu.
-- `GLOSSARY.md`: język domeny (PPE, Opust, Bank kWh, Ładowanie, Cena krańcowa kWh…). Używaj tych terminów w kodzie, testach, UI i commitach; gdy użytkownik mówi inaczej, wskaż konflikt.
+- `GLOSSARY.md`: język domeny (PPE, Opust, Magazyn energii, Ładowanie, Cena krańcowa kWh…). Używaj tych terminów w kodzie, testach, UI i commitach; gdy użytkownik mówi inaczej, wskaż konflikt.
 - `docs/adr/`: decyzje i ich powody. Przeczytaj przed zmianą stosu, przechowywania danych lub źródła danych.
 - `docs/invoice-structure.md`: rodzaje dokumentów Tauron, pola i pułapki parsowania. Przeczytaj przed pracą nad importem faktur.
 - `docs/roadmap.md`: funkcje ze statusem i otwartymi pytaniami. Każda nowa funkcja zaczyna się tutaj.
