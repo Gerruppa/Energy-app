@@ -11,6 +11,8 @@ Statusy: **pomysł** → **do doprecyzowania** → **gotowe do implementacji** �
 
 ## Pierwsza wersja (MVP)
 
+**Status:** w trakcie (spec #1). Zrobione: szkielet aplikacji (#2): start dwuklikiem, ekran powitalny, `Repository` (SQLite i w pamięci), testy w CI.
+
 F1 + F1a + F0 + F2 + F3 w osobnych widokach PPE. Ustalenia z grillowania (XI 2026):
 - Import obu układów faktur (stary 2022–2025 i nowy), Faktur korygujących i Not obciążeniowych.
 - Faktura trafia do bazy tylko, gdy sumy się zgadzają: pozycje = Wynik rozliczenia, Magazyn energii początek + przyrost − odbiór = koniec (tolerancja bilansowania). Spadek Magazynu energii między kolejnymi Fakturami zapisywany jako Wygaśnięcie.

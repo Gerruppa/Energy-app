@@ -36,7 +36,13 @@ Gotowe, gdy testy są zielone, commit jest wypchnięty, a każde kryterium akcep
 
 ## Komendy
 
-Python i biblioteki zarządza `uv` (ADR 0001). Gdy `uv` nie jest w PATH (sesja otwarta przed instalacją), uruchom go pełną ścieżką `%LOCALAPPDATA%\Microsoft\WinGet\Links\uv.exe`. Komendy testów i uruchamiania aplikacji dopisuje tu issue #2.
+Python i biblioteki zarządza `uv` (ADR 0001). Gdy `uv` nie jest w PATH (sesja otwarta przed instalacją), uruchom go pełną ścieżką `%LOCALAPPDATA%\Microsoft\WinGet\Links\uv.exe`. Python 3.14 (`.python-version`).
+
+- Start aplikacji: dwuklik w `Start.bat` (przy pierwszym starcie instaluje uv i zależności) albo `uv run python -m pv_app`; adres `http://localhost:8501`.
+- Testy: `uv run pytest`; pojedynczy plik: `uv run pytest tests/test_repository.py`.
+- Typy i styl: `uv run mypy`, `uv run ruff check .`, `uv run ruff format .`.
+- CI: `.github/workflows/tests.yml` uruchamia ruff, mypy i pytest na Windows przy każdym pushu na `main`.
+- Katalog danych: `data/` obok aplikacji; w testach podmieniany zmienną `PV_APP_DATA_DIR`.
 
 ## Dodawanie funkcji
 
