@@ -9,10 +9,13 @@ class MeteringPointAlreadyExists(Exception):
     pass
 
 
-def add_metering_point_from_invoice(
+def create_metering_point_from_invoice(
     repository: Repository, invoice: Invoice, *, name: str, icon: SiteIcon, charges_car: bool
 ) -> MeteringPoint:
-    """Tworzy PPE z danych pierwszej Faktury i odpowiedzi użytkownika, zapisuje oba."""
+    """Tworzy i zapisuje PPE z danych Faktury i odpowiedzi użytkownika.
+
+    Samą Fakturę zapisuje import (``batch_import``), razem z kopią pliku w archiwum.
+    """
     existing = repository.list_metering_points()
     header = invoice.header
     if any(p.ppe_number == header.ppe_number for p in existing):
@@ -27,5 +30,4 @@ def add_metering_point_from_invoice(
         net_metering=header.settlement_type is SettlementType.NET_METERING,
     )
     repository.add_metering_point(point)
-    repository.add_invoice(invoice)
     return point

@@ -71,3 +71,5 @@ Dopóki nie ma Okresu widoku (#8), analizy przyjmują sam numer PPE. `Filters` t
 ### app
 
 Powłoka Streamlit: wybór PPE (adres `?ppe=…`), kreator dodawania PPE, strona importu (upload → `ingest` → `storage`, pokazuje ostrzeżenia parsera i pyta o nowy PPE), zakładki z rejestru `features` dostępne dla wybranego PPE, styl druku dla „Faktury po ludzku”. Uruchamiana dwuklikiem w `Start.bat`. Nie zawiera logiki obliczeń.
+
+Logika importu bez Streamlita leży w `app/batch_import.py` i jest seamem testów strony importu i kreatora: `import_files(repository, archive, files) -> ImportSummary` (zaimportowane, duplikaty, odrzucone z powodem, Faktury nowych PPE czekające na kreator) oraz `add_new_metering_point(...)`, które dodaje PPE i kontynuuje import jego Faktur. Kolejność dla pliku: duplikat po hashu → `ingest` → duplikat po numerze Faktury → PPE znany? Tylko Faktura znanego PPE trafia do bazy, a jej plik do archiwum (`storage/archive.py`, `data/archive/`). Odczyt pliku jest wstrzykiwany, więc testy podają zrzuty wierszy zamiast PDF-ów.

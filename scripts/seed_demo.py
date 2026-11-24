@@ -4,31 +4,40 @@
     uv run python scripts/seed_demo.py KATALOG --references # prawdziwe PDF-y z References/
 
 Potem (PowerShell): ``$env:PV_APP_DATA_DIR = "KATALOG"; uv run python -m pv_app``.
-Każdy PPE powstaje przez ``add_metering_point_from_invoice`` jak w kreatorze; Faktury,
-które nie przeszły importu, są wypisane z przyczyną.
+Pliki przechodzą przez ``import_files`` jak na stronie importu (duplikaty pomijane, kopie
+w ``KATALOG/archive``), a każdy nowy PPE powstaje przez ``add_new_metering_point`` jak
+w kreatorze. Faktury, które nie przeszły importu, są wypisane z przyczyną.
 """
 
 import argparse
-from collections.abc import Iterator
 from pathlib import Path
 
-from pv_app.app.wizard import add_metering_point_from_invoice
+from pv_app.app.batch_import import (
+    ImportSummary,
+    Reader,
+    UploadedFile,
+    add_new_metering_point,
+    import_files,
+    read_pdf,
+)
 from pv_app.domain.invoice import SettlementType
 from pv_app.domain.metering_point import SiteIcon
-from pv_app.ingest import ImportResult, import_document, import_file
+from pv_app.ingest import ImportResult, import_document
 from pv_app.ingest.raw import RawDocument
+from pv_app.storage.archive import FileArchive
 from pv_app.storage.sqlite import SqliteRepository
 
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def _results(references: bool) -> Iterator[ImportResult]:
-    if references:
-        for path in sorted((ROOT / "References").rglob("*.pdf")):
-            yield import_file(path)
-    else:
-        for path in sorted((ROOT / "tests" / "fixtures").glob("*.json")):
-            yield import_document(RawDocument.from_json(path), path.name)
+def read_fixture(file: UploadedFile) -> ImportResult:
+    """Zrzut wierszy (JSON z ``tests/fixtures``) zamiast PDF-a."""
+    return import_document(RawDocument.loads(file.content), file.name)
+
+
+def _report(summary: ImportSummary) -> None:
+    for skipped in summary.rejected + summary.duplicates:
+        print(f"pominięto {skipped.file_name}: {skipped.reason}")
 
 
 def main() -> None:
@@ -37,33 +46,36 @@ def main() -> None:
     parser.add_argument("--references", action="store_true", help="prawdziwe PDF-y z References/")
     args = parser.parse_args()
 
+    paths: list[Path]
+    read: Reader
+    if args.references:
+        paths, read = sorted((ROOT / "References").rglob("*.pdf")), read_pdf
+    else:
+        paths, read = sorted((ROOT / "tests" / "fixtures").glob("*.json")), read_fixture
+    files = [UploadedFile(p.name, p.read_bytes()) for p in paths]
+
     repository = SqliteRepository(args.data_dir / "pv_app.sqlite3")
+    archive = FileArchive(args.data_dir / "archive")
     try:
-        points = {p.ppe_number for p in repository.list_metering_points()}
-        numbers = {i.number for p in points for i in repository.list_invoices(p)}
-        for result in _results(args.references):
-            invoice = result.invoice
-            if invoice is None:
-                print(f"pominięto {result.file_name}: {result.rejection}")
-                continue
-            if invoice.number in numbers:
-                continue
-            numbers.add(invoice.number)
-            if invoice.header.ppe_number in points:
-                repository.add_invoice(invoice)
-                continue
-            net_metering = invoice.header.settlement_type is SettlementType.NET_METERING
-            add_metering_point_from_invoice(
+        summary = import_files(repository, archive, files, read=read)
+        _report(summary)
+        for new_point in summary.new_metering_points:
+            net_metering = new_point.first_invoice.header.settlement_type is (
+                SettlementType.NET_METERING
+            )
+            count = len(repository.list_metering_points()) + 1
+            _, continuation = add_new_metering_point(
                 repository,
-                invoice,
-                name=f"{'Dom' if net_metering else 'Mieszkanie'} {len(points) + 1}",
+                archive,
+                new_point,
+                name=f"{'Dom' if net_metering else 'Mieszkanie'} {count}",
                 icon=SiteIcon.HOUSE if net_metering else SiteIcon.FLAT,
                 charges_car=net_metering,
             )
-            points.add(invoice.header.ppe_number)
+            _report(continuation)
         for point in repository.list_metering_points():
-            count = len(repository.list_invoices(point.ppe_number))
-            print(f"{point.name} (?ppe={point.slug}): {count} Faktur")
+            invoices = len(repository.list_invoices(point.ppe_number))
+            print(f"{point.name} (?ppe={point.slug}): {invoices} Faktur")
     finally:
         repository.close()
 

@@ -4,6 +4,7 @@ from pathlib import Path
 from pv_app.domain.invoice import Invoice
 from pv_app.domain.metering_point import MeteringPoint, SiteIcon
 from pv_app.storage.codec import from_json, to_json
+from pv_app.storage.repository import SourceFile
 
 _MIGRATIONS = (
     """
@@ -26,6 +27,14 @@ _MIGRATIONS = (
         payload      TEXT NOT NULL
     );
     CREATE INDEX invoice_by_ppe ON invoice (ppe_number, period_start);
+    """,
+    """
+    CREATE TABLE source_file (
+        sha256         TEXT PRIMARY KEY,
+        file_name      TEXT NOT NULL,
+        archive_name   TEXT NOT NULL,
+        invoice_number TEXT NOT NULL
+    );
     """,
 )
 """Kolejne wersje schematu; ``PRAGMA user_version`` mówi, ile już wykonano."""
@@ -102,9 +111,36 @@ class SqliteRepository:
                 ),
             )
 
+    def has_invoice(self, number: str) -> bool:
+        row = self._connection.execute(
+            "SELECT 1 FROM invoice WHERE number = ?", (number,)
+        ).fetchone()
+        return row is not None
+
     def list_invoices(self, ppe_number: str) -> list[Invoice]:
         rows = self._connection.execute(
             "SELECT payload FROM invoice WHERE ppe_number = ? ORDER BY period_start, number",
             (ppe_number,),
         ).fetchall()
         return [from_json(Invoice, r[0]) for r in rows]
+
+    def add_source_file(self, source_file: SourceFile) -> None:
+        with self._connection:
+            self._connection.execute(
+                "INSERT INTO source_file (sha256, file_name, archive_name, invoice_number)"
+                " VALUES (?, ?, ?, ?)",
+                (
+                    source_file.sha256,
+                    source_file.file_name,
+                    source_file.archive_name,
+                    source_file.invoice_number,
+                ),
+            )
+
+    def find_source_file(self, sha256: str) -> SourceFile | None:
+        row = self._connection.execute(
+            "SELECT sha256, file_name, archive_name, invoice_number FROM source_file"
+            " WHERE sha256 = ?",
+            (sha256,),
+        ).fetchone()
+        return SourceFile(*row) if row else None

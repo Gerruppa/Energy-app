@@ -1,16 +1,28 @@
-"""Ekran kreatora „Dodaj punkt poboru”: Faktura → potwierdzenie danych → nazwa, ikona, auto."""
+"""Ekran kreatora „Dodaj punkt poboru”: Faktura → potwierdzenie danych → nazwa, ikona, auto.
+
+Ze strony importu kreator zaczyna się od razu od nazwy (``render_naming_step``), bo
+Faktura nowego PPE jest już odczytana.
+"""
 
 import streamlit as st
 
-from pv_app.app.wizard import MeteringPointAlreadyExists, add_metering_point_from_invoice
+from pv_app.app.batch_import import (
+    NewMeteringPoint,
+    UploadedFile,
+    add_new_metering_point,
+    import_files,
+)
+from pv_app.app.import_page import IMPORT_SUMMARY, IMPORTING, NEW_METERING_POINT
+from pv_app.app.wizard import MeteringPointAlreadyExists
 from pv_app.domain.invoice import Invoice, SettlementType
 from pv_app.domain.metering_point import SiteIcon
 from pv_app.features import formatting as fmt
-from pv_app.ingest import import_file
+from pv_app.storage.archive import FileArchive
 from pv_app.storage.repository import Repository
 
 ADDING_METERING_POINT = "adding_metering_point"
 """Klucz ``st.session_state``: kreator jest otwarty."""
+_WIZARD_UPLOAD = "wizard_upload"
 
 
 def _settlement_text(invoice: Invoice) -> str:
@@ -23,7 +35,7 @@ def _settlement_text(invoice: Invoice) -> str:
     return "standardowe (bez fotowoltaiki)"
 
 
-def render_wizard(repository: Repository) -> None:
+def render_wizard(repository: Repository, archive: FileArchive) -> None:
     st.title("Dodaj punkt poboru")
     st.write(
         "Wgraj jedną Fakturę Tauron (PDF) z tego punktu poboru. Aplikacja odczyta z niej "
@@ -32,19 +44,33 @@ def render_wizard(repository: Repository) -> None:
     upload = st.file_uploader("Faktura (PDF)", type="pdf")
     if upload is None:
         return
-    # Formularz poniżej uruchamia skrypt od nowa; ten sam plik czytamy tylko raz.
-    cache = st.session_state.setdefault("wizard_import", {})
-    if upload.file_id not in cache:
-        cache.clear()
-        cache[upload.file_id] = import_file(upload, upload.name)
-    result = cache[upload.file_id]
-    if result.invoice is None:
-        st.error(result.rejection or "Nie udało się odczytać Faktury.")
-        return
-    invoice = result.invoice
+    # Ten sam wybrany plik czytamy tylko raz, choć skrypt uruchamia się wielokrotnie.
+    file_id, summary = st.session_state.get(_WIZARD_UPLOAD, (None, None))
+    if file_id != upload.file_id or summary is None:
+        summary = import_files(repository, archive, [UploadedFile(upload.name, upload.getvalue())])
+        st.session_state[_WIZARD_UPLOAD] = (upload.file_id, summary)
+    if summary.new_metering_points:
+        st.session_state[IMPORT_SUMMARY] = summary
+        st.session_state[NEW_METERING_POINT] = summary.new_metering_points[0]
+        st.rerun()
+    for file in summary.rejected + summary.duplicates:
+        st.error(file.reason)
+    if summary.imported:
+        st.info(
+            "Ta Faktura należy do punktu poboru, który już jest w aplikacji; "
+            "dodano ją do jego Faktur."
+        )
+
+
+def render_naming_step(
+    repository: Repository, archive: FileArchive, new_point: NewMeteringPoint
+) -> None:
+    st.title("Dodaj punkt poboru")
+    invoice = new_point.first_invoice
     header = invoice.header
-    for warning in result.warnings:
-        st.warning(warning)
+    for waiting in new_point.files:
+        for warning in waiting.result.warnings:
+            st.warning(f"**{waiting.file.name}**: {warning}")
 
     st.subheader("Czy to ten punkt poboru?")
     st.table(
@@ -76,19 +102,33 @@ def render_wizard(repository: Repository) -> None:
         )
         charges_car = st.checkbox("Ładuję tu auto")
         submitted = st.form_submit_button("Zapisz punkt poboru", type="primary")
+    if st.button("Anuluj"):
+        # Ze strony importu wraca do podsumowania, z ekranu powitalnego zamyka kreator.
+        for key in (NEW_METERING_POINT, _WIZARD_UPLOAD, ADDING_METERING_POINT):
+            st.session_state.pop(key, None)
+        if not st.session_state.get(IMPORTING):
+            st.session_state.pop(IMPORT_SUMMARY, None)
+        st.rerun()
     if not submitted:
         return
     if not name.strip():
         st.error("Podaj nazwę punktu poboru.")
         return
     try:
-        point = add_metering_point_from_invoice(
-            repository, invoice, name=name, icon=icon, charges_car=charges_car
+        point, continuation = add_new_metering_point(
+            repository, archive, new_point, name=name, icon=icon, charges_car=charges_car
         )
     except MeteringPointAlreadyExists:
         st.error("Ten punkt poboru jest już w aplikacji.")
         return
-    st.session_state.pop(ADDING_METERING_POINT, None)
-    st.session_state.pop("wizard_import", None)
-    st.query_params["ppe"] = point.slug
+    st.session_state.pop(NEW_METERING_POINT, None)
+    st.session_state.pop(_WIZARD_UPLOAD, None)
+    summary = st.session_state.get(IMPORT_SUMMARY)
+    if summary is not None:
+        st.session_state[IMPORT_SUMMARY] = summary.after_adding(new_point, continuation)
+    if not st.session_state.get(IMPORTING):
+        # Kreator z ekranu powitalnego kończy się w widoku nowego PPE.
+        st.session_state.pop(ADDING_METERING_POINT, None)
+        st.session_state.pop(IMPORT_SUMMARY, None)
+        st.query_params["ppe"] = point.slug
     st.rerun()

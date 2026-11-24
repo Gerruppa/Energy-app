@@ -19,7 +19,12 @@ class RawDocument:
     @classmethod
     def from_json(cls, path: Path) -> "RawDocument":
         """Zrzut wierszy zapisany jako ``{"pages": [[wiersz, ...], ...]}``."""
-        data = json.loads(path.read_text(encoding="utf-8"))
+        return cls.loads(path.read_bytes())
+
+    @classmethod
+    def loads(cls, text: str | bytes) -> "RawDocument":
+        """Zrzut wierszy z treści JSON, np. wgranego pliku."""
+        data = json.loads(text)
         return cls(
             pages=tuple(
                 RawPage(number=i, lines=tuple(lines)) for i, lines in enumerate(data["pages"], 1)

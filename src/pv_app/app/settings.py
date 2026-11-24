@@ -17,3 +17,8 @@ def data_dir() -> Path:
 
 def database_path() -> Path:
     return data_dir() / "pv_app.sqlite3"
+
+
+def archive_dir() -> Path:
+    """Kopie wgranych plików, z których da się odbudować bazę."""
+    return data_dir() / "archive"

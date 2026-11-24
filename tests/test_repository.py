@@ -13,7 +13,7 @@ from pv_app.domain.metering_point import MeteringPoint, SiteIcon
 from pv_app.ingest import import_document
 from pv_app.ingest.raw import RawDocument
 from pv_app.storage.in_memory import InMemoryRepository
-from pv_app.storage.repository import Repository
+from pv_app.storage.repository import Repository, SourceFile
 from pv_app.storage.sqlite import SqliteRepository
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -99,3 +99,25 @@ def test_database_from_previous_version_gets_new_columns_and_tables(tmp_path: Pa
 
     assert repo.list_metering_points() == [HOME]
     repo.close()
+
+
+def test_knows_whether_an_invoice_number_is_saved(repository: Repository) -> None:
+    invoice = fixture_invoice("new_layout_net_metering_monthly")
+    repository.add_invoice(invoice)
+
+    assert repository.has_invoice(invoice.number)
+    assert not repository.has_invoice("T/K1/BN000001/0099/26")
+
+
+def test_source_file_is_found_by_its_hash(repository: Repository) -> None:
+    source_file = SourceFile(
+        sha256="ab" * 32,
+        file_name="faktura.pdf",
+        archive_name="abababababab-faktura.pdf",
+        invoice_number="T/K1/BN000001/0004/26",
+    )
+
+    repository.add_source_file(source_file)
+
+    assert repository.find_source_file("ab" * 32) == source_file
+    assert repository.find_source_file("cd" * 32) is None

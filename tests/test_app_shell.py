@@ -75,3 +75,25 @@ def test_costs_tab_lists_invoices_of_the_metering_point(app: AppTest) -> None:
     assert list(table["Podstawa rozliczenia"]) == ["🟢 odczyt rzeczywisty"]
     assert list(table["Koszt okresu"]) == ["32,04 zł"]
     assert "Faktura rozliczeniowa" in table["Dokument"][0]
+
+
+def test_import_page_accepts_many_files_and_summarises_rejected_ones(app: AppTest) -> None:
+    repo = SqliteRepository(database_path())
+    repo.add_metering_point(HOME)
+    repo.close()
+    app.run()
+    app.sidebar.button[0].click().run()
+    assert app.title[0].value == "Wgraj Faktury"
+
+    app.file_uploader[0].set_value(
+        [("a.pdf", b"to nie PDF", "application/pdf"), ("b.pdf", b"ani to", "application/pdf")]
+    ).run()
+    next(b for b in app.button if b.label == "Wgraj").click().run()
+
+    assert not app.exception
+    metrics = {m.label: m.value for m in app.metric}
+    assert metrics == {"Zaimportowane": "0", "Duplikaty": "0", "Odrzucone": "2"}
+    assert [e.value for e in app.error] == [
+        "**a.pdf**: Plik nie jest czytelnym PDF-em.",
+        "**b.pdf**: Plik nie jest czytelnym PDF-em.",
+    ]
