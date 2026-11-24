@@ -282,6 +282,16 @@ class Invoice:
         return self.header.number
 
     @property
+    def amount_due(self) -> Decimal:
+        """Do zapłaty po tej Fakturze; ujemna kwota = do zwrotu.
+
+        W Fakturze korygującej to różnica po korekcie: ``summary.amount_due`` jest tam kwotą
+        z części „należało policzyć”, a część „policzono” była już rozliczona."""
+        if self.correction is not None:
+            return self.correction.difference
+        return self.summary.amount_due
+
+    @property
     def result_after_discount(self) -> Decimal:
         """Wynik rozliczenia brutto pomniejszony o Bonifikatę z tej Faktury (Bonifikata na
         Fakturze jest ujemna, na Nocie obciążeniowej dodatnia — tak jak na dokumentach).

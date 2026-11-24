@@ -256,13 +256,6 @@ def _render_header(sheet: InvoiceSheet, point_name: str) -> None:
     st.caption(f"Źródło: {', '.join(sources)}")
 
 
-def _amount_due(invoice: Invoice) -> Decimal:
-    """Do zapłaty (ujemne: do zwrotu); dla Faktury korygującej różnica po korekcie."""
-    if invoice.correction is not None:
-        return invoice.correction.difference
-    return invoice.summary.amount_due
-
-
 def _due_text(amount_due: Decimal) -> tuple[str, str]:
     if amount_due < 0:
         return "Do zwrotu", fmt.zl(-amount_due)
@@ -285,7 +278,7 @@ def _render_key_figures(sheet: InvoiceSheet) -> None:
             TERMS["average_price"],
         )
     )
-    figures.append((*_due_text(_amount_due(invoice)), TERMS["amount_due"]))
+    figures.append((*_due_text(invoice.amount_due), TERMS["amount_due"]))
     _metrics(figures)
 
 
@@ -424,7 +417,7 @@ def _render_settlement(sheet: InvoiceSheet) -> None:
         rows.append((f"{label} według „należało policzyć”", value))
         label, value = _due_text(correction.charged_amount_due)
         rows.append((f"{label} według korygowanej Faktury („policzono”)", value))
-        label, value = _due_text(correction.difference)
+        label, value = _due_text(invoice.amount_due)
         rows.append((f"{label} po korekcie", value))
     balance = summary.account_balance
     if balance is not None:

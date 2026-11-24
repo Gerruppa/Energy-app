@@ -1,0 +1,21 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "demo",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": [
+        "run",
+        "python",
+        "-m",
+        "pv_app",
+        "--data-dir",
+        "demo-data",
+        "--port",
+        "8502",
+        "--no-browser"
+      ],
+      "port": 8502
+    }
+  ]
+}

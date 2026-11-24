@@ -128,3 +128,15 @@ def test_result_after_discount_of_correcting_invoice() -> None:
     assert invoice is not None
 
     assert invoice.result_after_discount == Decimal("44.28")
+
+
+def test_amount_due_of_correcting_invoice_is_the_difference_after_correction() -> None:
+    correcting = import_document(load(STANDARD)).invoice
+    settlement = import_document(
+        RawDocument.from_json(FIXTURES / "new_layout_standard_half_year.json")
+    ).invoice
+    assert correcting is not None and settlement is not None
+
+    # „Należało policzyć” daje 44,28 zł do zapłaty, ale zapłacono już 56,58 zł z korygowanej.
+    assert correcting.amount_due == Decimal("-12.30")
+    assert settlement.amount_due == settlement.summary.amount_due == Decimal("-59.13")
