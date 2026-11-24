@@ -2,16 +2,14 @@
 
 from pathlib import Path
 
-import pytest
 from streamlit.testing.v1 import AppTest
 
-from pv_app.app.settings import DATA_DIR_ENV, database_path
+from pv_app.app.settings import database_path
 from pv_app.domain.metering_point import MeteringPoint, SiteIcon
 from pv_app.ingest import import_document
 from pv_app.ingest.raw import RawDocument
 from pv_app.storage.sqlite import SqliteRepository
 
-MAIN = str(Path(__file__).resolve().parent.parent / "src" / "pv_app" / "app" / "main.py")
 FIXTURES = Path(__file__).parent / "fixtures"
 
 HOME = MeteringPoint(
@@ -25,25 +23,19 @@ HOME = MeteringPoint(
 )
 
 
-@pytest.fixture
-def empty_data_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    monkeypatch.setenv(DATA_DIR_ENV, str(tmp_path))
-    return tmp_path
-
-
 def test_without_data_shows_welcome_screen_with_add_metering_point_button(
-    empty_data_dir: Path,
+    app: AppTest,
 ) -> None:
-    app = AppTest.from_file(MAIN, default_timeout=30).run()
+    app.run()
 
     assert not app.exception
     assert [b.label for b in app.button] == ["Dodaj punkt poboru"]
 
 
 def test_add_metering_point_button_opens_wizard_asking_for_an_invoice(
-    empty_data_dir: Path,
+    app: AppTest,
 ) -> None:
-    app = AppTest.from_file(MAIN, default_timeout=30).run()
+    app.run()
 
     app.button[0].click().run()
 
@@ -52,19 +44,19 @@ def test_add_metering_point_button_opens_wizard_asking_for_an_invoice(
     assert "Faktur" in app.markdown[0].value
 
 
-def test_with_a_metering_point_does_not_show_welcome_screen(empty_data_dir: Path) -> None:
+def test_with_a_metering_point_does_not_show_welcome_screen(app: AppTest) -> None:
     repo = SqliteRepository(database_path())
     repo.add_metering_point(HOME)
     repo.close()
 
-    app = AppTest.from_file(MAIN, default_timeout=30).run()
+    app.run()
 
     assert not app.exception
     assert "Dodaj punkt poboru" not in [b.label for b in app.button]
     assert "Dom" in app.title[0].value
 
 
-def test_costs_tab_lists_invoices_of_the_metering_point(empty_data_dir: Path) -> None:
+def test_costs_tab_lists_invoices_of_the_metering_point(app: AppTest) -> None:
     invoice = import_document(
         RawDocument.from_json(FIXTURES / "new_layout_net_metering_monthly.json")
     ).invoice
@@ -74,7 +66,7 @@ def test_costs_tab_lists_invoices_of_the_metering_point(empty_data_dir: Path) ->
     repo.add_invoice(invoice)
     repo.close()
 
-    app = AppTest.from_file(MAIN, default_timeout=30).run()
+    app.run()
 
     assert not app.exception
     assert [t.label for t in app.tabs] == ["Koszty i Faktury"]

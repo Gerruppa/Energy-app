@@ -1,0 +1,6 @@
+#!/bin/sh
+# Kontrola prywatności przed commitem (ADR 0004): dane z References/ nie trafiają do gita.
+# Włączenie w kopii repozytorium: git config core.hooksPath .githooks
+UV=uv
+command -v uv >/dev/null 2>&1 || UV="$LOCALAPPDATA/Microsoft/WinGet/Links/uv.exe"
+exec "$UV" run --frozen pytest -q -p no:cacheprovider tests/test_no_personal_data.py

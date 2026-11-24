@@ -26,8 +26,8 @@ def _settlement_text(invoice: Invoice) -> str:
 def render_wizard(repository: Repository) -> None:
     st.title("Dodaj punkt poboru")
     st.write(
-        "Wgraj jedną Fakturę Tauron (PDF) z tego punktu. Aplikacja odczyta z niej dane punktu, "
-        "a Ty nadasz mu tylko nazwę."
+        "Wgraj jedną Fakturę Tauron (PDF) z tego punktu poboru. Aplikacja odczyta z niej "
+        "numer PPE, adres i taryfę, a Ty nadasz punktowi poboru tylko nazwę."
     )
     upload = st.file_uploader("Faktura (PDF)", type="pdf")
     if upload is None:

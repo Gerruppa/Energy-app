@@ -14,6 +14,8 @@ from pv_app.ingest import import_file
 REFERENCES = Path(__file__).resolve().parent.parent / "References"
 UNSUPPORTED = "Nieobsługiwany rodzaj dokumentu"
 
+pytestmark = pytest.mark.real_pdfs
+
 
 def _unique_pdfs() -> list[Path]:
     if not REFERENCES.is_dir():

@@ -24,7 +24,10 @@ packages = ["src/pv_app"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra"
+addopts = "-ra -m 'not real_pdfs'"
+markers = [
+    "real_pdfs: czyta prawdziwe Faktury z References/ (ok. 30 s); uruchom: uv run pytest -m real_pdfs",
+]
 
 [tool.ruff]
 line-length = 100
@@ -35,5 +38,5 @@ select = ["E", "F", "I", "B", "UP"]
 
 [tool.mypy]
 strict = true
-files = ["src", "tests"]
+files = ["src", "tests", "scripts"]
 mypy_path = "src"
