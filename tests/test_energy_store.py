@@ -181,3 +181,18 @@ def test_state_lists_portions_expiring_within_the_window() -> None:
     assert [(p.invoice_number, p.remaining_kwh) for p in state.expiring] == [
         ("F/12/24", Decimal("20"))
     ]
+
+
+def test_drop_within_balance_tolerance_is_rounding_not_expiry() -> None:
+    # Na start 1 kWh mniej niż na koniec poprzedniej Faktury: zaokrąglenie Taurona.
+    store = EnergyStore.from_invoices(
+        [
+            store_invoice(JANUARY, "0", "40", "40", number="F/1"),
+            store_invoice(FEBRUARY, "39", "30", "49", number="F/2"),
+        ]
+    )
+
+    assert [m.kind for m in store.movements] == [MovementKind.INVOICE, MovementKind.INVOICE]
+    state = store.state_on(date(2026, 2, 28))
+    assert state is not None
+    assert sum(p.remaining_kwh for p in state.portions) == Decimal("49")

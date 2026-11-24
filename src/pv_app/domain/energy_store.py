@@ -4,7 +4,8 @@ Faktura podaje tylko stan łączny (na start i na koniec Okresu rozliczeniowego)
 łączny zawsze pochodzi z Faktury, a podział na porcje i daty Wygaśnięcia są szacunkiem:
 porcja wygasa 12 miesięcy po końcu okresu, w którym ją oddano, a Opust zdejmowany jest od
 najstarszej porcji. Spadek stanu na start Faktury poniżej stanu na koniec poprzedniej
-Faktury to Wygaśnięcie.
+Faktury to Wygaśnięcie; spadek w granicy tolerancji bilansu (``ENERGY_BALANCE_TOLERANCE_KWH``)
+to zaokrąglenie Taurona, nie Wygaśnięcie.
 """
 
 import calendar
@@ -15,6 +16,7 @@ from decimal import Decimal
 from enum import StrEnum
 
 from pv_app.domain.invoice import DateRange, Invoice, Source
+from pv_app.domain.invoice_checks import ENERGY_BALANCE_TOLERANCE_KWH
 from pv_app.domain.period_cost import superseded_invoices
 
 EXPIRY_MONTHS = 12
@@ -190,8 +192,9 @@ class EnergyStore:
             contiguous = previous is not None and previous.period.end + timedelta(1) == (
                 period.start
             )
-            if previous is not None and contiguous and start < previous.end_kwh:
-                expired = previous.end_kwh - start
+            drop = previous.end_kwh - start if previous is not None else Decimal(0)
+            if previous is not None and contiguous and drop > ENERGY_BALANCE_TOLERANCE_KWH:
+                expired = drop
                 _take(portions, expired)
                 snapshots.append(
                     _Snapshot(

@@ -10,6 +10,7 @@ from pv_app.domain.energy_store import (
     StoreMovement,
     StoreState,
 )
+from pv_app.domain.invoice_checks import ENERGY_BALANCE_TOLERANCE_KWH
 from pv_app.domain.metering_point import MeteringPoint
 from pv_app.features import formatting as fmt
 from pv_app.features.base import FeatureContext
@@ -21,7 +22,8 @@ from pv_app.features.terms import ESTIMATE_HELP, seller_share_help, store_help
 MOVEMENTS_KEY = "store_movements"
 ROUNDING_HELP = (
     "Zaokrąglenie Taurona: stan na koniec z Faktury różni się czasem o 1–2 kWh od bilansu "
-    "wiersza, bo Tauron rozlicza Magazyn energii godzina po godzinie i zaokrągla."
+    "wiersza, bo Tauron rozlicza Magazyn energii godzina po godzinie i zaokrągla. Tak samo "
+    f"spadek do {fmt.kwh(ENERGY_BALANCE_TOLERANCE_KWH)} między Fakturami nie jest Wygaśnięciem."
 )
 
 
@@ -93,7 +95,8 @@ def _render_movements(view: EnergyStoreView, period_label: str) -> None:
         "Ruch w Magazynie energii, Faktura po Fakturze",
         help="W każdym wierszu: na start + przybyło − w tym z Magazynu − wygasło = na koniec, "
         f"z dokładnością do zaokrąglenia Taurona. {ROUNDING_HELP} Wygaśnięcie widać jako "
-        "spadek stanu na start Faktury poniżej stanu na koniec poprzedniej Faktury; Faktura "
+        "spadek stanu na start Faktury poniżej stanu na koniec poprzedniej Faktury (większy niż "
+        f"{fmt.kwh(ENERGY_BALANCE_TOLERANCE_KWH)}); Faktura "
         "nie podaje go wprost.",
     )
     if not view.movements:
