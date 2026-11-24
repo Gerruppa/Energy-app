@@ -369,15 +369,17 @@ def test_warns_about_unrecognised_invoice_line_but_keeps_it() -> None:
     assert [line.component for line in unknown] == [None]
 
 
-def test_rejects_document_that_is_not_a_new_layout_invoice() -> None:
-    document = RawDocument((RawPage(1, ("Sprzedawca:", "FAKTURA VAT ROZLICZENIOWA NR 1/2024")),))
+def test_rejects_document_that_is_not_a_settlement_invoice() -> None:
+    document = RawDocument(
+        (RawPage(1, ("Sprzedawca:", "FAKTURA VAT KOREKTA NR 1/2026 DO FAKTURY VAT NR 2/2025")),)
+    )
 
-    result = import_document(document, "stara.pdf")
+    result = import_document(document, "korekta.pdf")
 
     assert result.invoice is None
-    assert result.file_name == "stara.pdf"
+    assert result.file_name == "korekta.pdf"
     assert result.rejection is not None
-    assert "nowym układzie" in result.rejection
+    assert result.rejection.startswith("Nieobsługiwany rodzaj dokumentu")
 
 
 def test_values_found_on_other_pages_carry_their_own_page() -> None:

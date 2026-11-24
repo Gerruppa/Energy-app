@@ -1,8 +1,12 @@
+from collections.abc import Callable
 from pathlib import Path
 from typing import BinaryIO
 
+from pv_app.domain.invoice import Invoice
 from pv_app.domain.invoice_checks import check_totals
-from pv_app.ingest.new_layout import ParseError, is_new_layout, parse_new_layout
+from pv_app.ingest.new_layout import is_new_layout, parse_new_layout
+from pv_app.ingest.old_layout import is_old_layout, parse_old_layout
+from pv_app.ingest.parse_error import ParseError
 from pv_app.ingest.pdf_adapter import read_pdf
 from pv_app.ingest.raw import RawDocument
 from pv_app.ingest.result import ImportResult
@@ -20,14 +24,20 @@ def import_file(file: Path | BinaryIO, file_name: str | None = None) -> ImportRe
 
 def import_document(document: RawDocument, file_name: str = "") -> ImportResult:
     """Rozpoznaje rodzaj dokumentu i odczytuje go z surowych wierszy."""
-    if not is_new_layout(document):
+    parse: Callable[[RawDocument], tuple[Invoice, list[str]]]
+    if is_new_layout(document):
+        parse = parse_new_layout
+    elif is_old_layout(document):
+        parse = parse_old_layout
+    else:
         return ImportResult(
             file_name=file_name,
             rejection="Nieobsługiwany rodzaj dokumentu: aplikacja czyta na razie "
-            "Faktury rozliczeniowe Tauron w nowym układzie (od grudnia 2025).",
+            "Faktury rozliczeniowe Tauron (stary i nowy układ), bez Faktur korygujących "
+            "i Not obciążeniowych.",
         )
     try:
-        invoice, warnings = parse_new_layout(document)
+        invoice, warnings = parse(document)
     except ParseError as error:
         return ImportResult(file_name=file_name, rejection=str(error))
     problems = check_totals(invoice)

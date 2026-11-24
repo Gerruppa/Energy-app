@@ -27,6 +27,7 @@ from pv_app.domain.invoice import (
     Source,
 )
 from pv_app.domain.invoice_lines import classify_line
+from pv_app.ingest.parse_error import ParseError
 from pv_app.ingest.polish_format import DATE, NUMBER, parse_date, parse_number
 from pv_app.ingest.raw import RawDocument
 
@@ -34,10 +35,6 @@ _NUM = NUMBER
 
 _SUMMARY_PAGE = re.compile(r"To jest Twoja\s*faktura")
 _GREETING = re.compile(r"^Dzień dobry, to jest podsumowanie Twojej faktury")
-
-
-class ParseError(Exception):
-    """Faktury nie da się odczytać; komunikat po polsku trafia do użytkownika."""
 
 
 def is_new_layout(document: RawDocument) -> bool:

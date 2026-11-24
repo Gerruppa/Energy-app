@@ -11,7 +11,7 @@ Statusy: **pomysł** → **do doprecyzowania** → **gotowe do implementacji** �
 
 ## Pierwsza wersja (MVP)
 
-**Status:** w trakcie (spec #1). Zrobione: szkielet aplikacji (#2): start dwuklikiem, ekran powitalny, `Repository` (SQLite i w pamięci), testy w CI; pierwsza Faktura przez kreator (#3): import Faktury w nowym układzie z kontrolą sum, kreator „Dodaj punkt poboru”, lista Faktur w Koszty i Faktury; import paczki (#4): strona „Wgraj Faktury”, duplikaty po hashu pliku i numerze Faktury, pytanie o nowy PPE, archiwum plików.
+**Status:** w trakcie (spec #1). Zrobione: szkielet aplikacji (#2): start dwuklikiem, ekran powitalny, `Repository` (SQLite i w pamięci), testy w CI; pierwsza Faktura przez kreator (#3): import Faktury w nowym układzie z kontrolą sum, kreator „Dodaj punkt poboru”, lista Faktur w Koszty i Faktury; import paczki (#4): strona „Wgraj Faktury”, duplikaty po hashu pliku i numerze Faktury, pytanie o nowy PPE, archiwum plików; Faktury w starym układzie (#5).
 
 F1 + F1a + F0 + F2 + F3 w osobnych widokach PPE. Ustalenia z grillowania (XI 2026):
 - Import obu układów faktur (stary 2022–2025 i nowy), Faktur korygujących i Not obciążeniowych.
@@ -47,7 +47,7 @@ F1 + F1a + F0 + F2 + F3 w osobnych widokach PPE. Ustalenia z grillowania (XI 202
 
 ## F1. Import faktur Tauron (PDF)
 
-**Status:** w trakcie. Zrobione: Faktura rozliczeniowa w nowym układzie (#3; warianty i pułapki w `docs/invoice-structure.md`), import paczki z duplikatami i archiwum (#4). Zostały: stary układ (#5), Faktury korygujące i Noty obciążeniowe (#6).
+**Status:** w trakcie. Zrobione: Faktura rozliczeniowa w nowym układzie (#3; warianty i pułapki w `docs/invoice-structure.md`), import paczki z duplikatami i archiwum (#4), Faktura rozliczeniowa w starym układzie (#5; tabele czytane z komórek po położeniu na stronie). Zostały: Faktury korygujące i Noty obciążeniowe (#6).
 
 Upload PDF → Faktura z Pozycjami faktury, Okresem rozliczeniowym, odczytami, Rozliczeniem OZE (Energia pobrana i oddana, Magazyn energii na początku i końcu, Udział Sprzedawcy), Saldem i harmonogramem Prognoz. Dwa układy faktur (stary i nowy), Faktury korygujące, Noty obciążeniowe. Ostrzeżenie przy nierozpoznanej pozycji.
 

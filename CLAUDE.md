@@ -42,7 +42,7 @@ Python i biblioteki zarządza `uv` (ADR 0001). Gdy `uv` nie jest w PATH (sesja o
 - Start aplikacji: dwuklik w `Start.bat` (przy pierwszym starcie instaluje uv i zależności) albo `uv run python -m pv_app`; adres `http://localhost:8501`.
 - Testy: `uv run pytest`; pojedynczy plik: `uv run pytest tests/test_repository.py`. Import na prawdziwych PDF-ach z `References/` (ok. 30 s, poza domyślnym zestawem): `uv run pytest -m real_pdfs`.
 - Hook prywatności w nowej kopii repozytorium: `git config core.hooksPath .githooks`.
-- Wiersze PDF-a tak, jak widzi je parser: `uv run python scripts/dump_raw.py PLIK.pdf [--page N] [--grep WZORZEC] [--json SZKIELET.json]`.
+- Wiersze PDF-a tak, jak widzi je parser: `uv run python scripts/dump_raw.py PLIK.pdf [--page N] [--grep WZORZEC] [--json SZKIELET.json]`; `--cells` pokazuje i zapisuje komórki tabel (stary układ).
 - Dane do oglądania ekranów bez ruszania `data/`: `uv run python scripts/seed_demo.py KATALOG [--references]`, potem start aplikacji z `PV_APP_DATA_DIR=KATALOG`.
 - Typy i styl: `uv run mypy`, `uv run ruff check .`, `uv run ruff format .`.
 - CI: `.github/workflows/tests.yml` uruchamia ruff, mypy i pytest na Windows przy każdym pushu na `main`.
