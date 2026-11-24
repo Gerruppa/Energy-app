@@ -67,6 +67,10 @@ _Avoid_: koszt energii (jako ogólne słowo)
 **Składnik stały**:
 Pozycja faktury naliczana niezależnie od kWh: dystrybucja stała, opłata przejściowa, opłata abonamentowa, opłata mocowa.
 
+**Grupa kosztów**:
+Jedna z pięciu grup, w które „Faktura po ludzku” zbiera Pozycje faktury: Energia (energia czynna), Dystrybucja zmienna (składnik zmienny stawki sieciowej, stawka jakościowa), Opłaty od kWh (OZE, kogeneracyjna), Opłata mocowa, Opłaty stałe (dystrybucja stała, opłata przejściowa, opłata abonamentowa).
+_Avoid_: kategoria (to Składnik zmienny / stały)
+
 ## Energia
 
 **Energia pobrana**:

@@ -1,3 +1,5 @@
+from functools import partial
+
 import streamlit as st
 
 from pv_app.domain.metering_point import MeteringPoint
@@ -9,6 +11,7 @@ from pv_app.features.costs.analysis import (
     debit_note_list,
     invoice_list,
 )
+from pv_app.features.navigation import open_invoice
 
 
 class CostsFeature:
@@ -26,8 +29,15 @@ class CostsFeature:
         if not rows:
             st.info(f"Brak Faktur za {context.view_period.label}.")
         else:
-            st.dataframe([_invoice_entry(row, point) for row in rows], hide_index=True)
+            st.dataframe(
+                [_invoice_entry(row, point) for row in rows],
+                hide_index=True,
+                key=INVOICE_LIST_KEY,
+                on_select=partial(_open_selected, [row.number for row in rows]),
+                selection_mode="single-row",
+            )
             st.caption(
+                "Kliknij wiersz, żeby otworzyć Fakturę po ludzku (z wydrukiem). "
                 "Koszt okresu to Wynik rozliczenia brutto z Faktury (sprzedaż + dystrybucja) "
                 "minus bonifikaty z Faktury i z Not obciążeniowych za ten okres, bez Prognoz "
                 "i nadpłat. Faktura zastąpiona Fakturą korygującą zostaje na liście, ale liczy "
@@ -41,6 +51,17 @@ class CostsFeature:
                 "Bonifikata z Noty pomniejsza Koszt okresu Faktury, w której Okresie "
                 "rozliczeniowym leży data sprzedaży Noty."
             )
+
+
+INVOICE_LIST_KEY = "invoice_list"
+
+
+def _open_selected(numbers: list[str]) -> None:
+    """Otwiera zaznaczoną Fakturę i czyści zaznaczenie, żeby po powrocie lista była zwykła."""
+    selected = st.session_state[INVOICE_LIST_KEY].selection.rows
+    del st.session_state[INVOICE_LIST_KEY]
+    if selected:
+        open_invoice(numbers[selected[0]])
 
 
 def _invoice_entry(row: InvoiceListRow, point: MeteringPoint) -> dict[str, object]:

@@ -6,6 +6,7 @@ from pv_app.domain.metering_point import MeteringPoint
 from pv_app.domain.view_period import ViewPeriodKind, month_label
 from pv_app.features import formatting as fmt
 from pv_app.features.base import FeatureContext
+from pv_app.features.navigation import open_invoice
 from pv_app.features.overview.analysis import (
     PeriodTotals,
     YearOverYear,
@@ -202,15 +203,22 @@ def _render_comparison(context: FeatureContext, comparison: YearOverYear) -> Non
 
 
 def _render_invoices(current: PeriodTotals) -> None:
-    """Z której Faktury są liczby Okresu widoku (widok Faktury dojdzie w #7)."""
+    """Z której Faktury są liczby Okresu widoku, z przejściem do widoku Faktury."""
     for ref in current.invoices:
         sources = f"kWh: str. {ref.energy_source.page}, Koszt okresu: str. {ref.cost_source.page}"
+        text_column, button_column = st.columns([5, 1], vertical_alignment="center")
         if ref.part_of_longer:
-            st.markdown(
+            text_column.markdown(
                 f"≈ Liczby wyliczone z Faktury **{ref.number}** za okres "
                 f"{fmt.period(ref.period)} ({sources})."
             )
         else:
-            st.markdown(
+            text_column.markdown(
                 f"Faktura za ten okres: **{ref.number}**, {fmt.period(ref.period)} ({sources})."
             )
+        button_column.button(
+            "Pokaż Fakturę",
+            key=f"overview_invoice_{ref.number}",
+            on_click=open_invoice,
+            args=(ref.number,),
+        )

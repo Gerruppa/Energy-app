@@ -176,3 +176,87 @@ def test_default_view_is_last_month_fully_covered_by_invoices(app: AppTest) -> N
 
     assert not app.exception
     assert "**luty 2026**" in [m.value for m in app.markdown]
+
+
+def test_invoice_page_opened_from_page_address_shows_invoice_in_plain_language(
+    app: AppTest,
+) -> None:
+    invoice = import_document(
+        RawDocument.from_json(FIXTURES / "new_layout_net_metering_monthly.json")
+    ).invoice
+    assert invoice is not None
+    repo = SqliteRepository(database_path())
+    repo.add_metering_point(HOME)
+    repo.add_invoice(invoice)
+    repo.close()
+    app.query_params["faktura"] = invoice.number
+
+    app.run()
+
+    assert not app.exception
+    assert not app.tabs
+    assert invoice.number in app.title[0].value
+    headings = [h.value for h in app.subheader]
+    assert headings == [
+        "Liczniki",
+        "Rozliczenie OZE",
+        "Za co płacicie: 32,04 zł",
+        "Rozliczenie",
+        "Ten sam okres rok wcześniej",
+    ]
+    assert "Wróć" in [b.label for b in app.button]
+
+
+def test_unknown_invoice_in_page_address_says_so_and_offers_way_back(app: AppTest) -> None:
+    repo = SqliteRepository(database_path())
+    repo.add_metering_point(HOME)
+    repo.close()
+    app.query_params["faktura"] = "T/NIE/MA/TAKIEJ"
+
+    app.run()
+
+    assert not app.exception
+    assert "T/NIE/MA/TAKIEJ" in app.warning[0].value
+    assert "Wróć" in [b.label for b in app.button]
+
+
+def test_overview_opens_invoice_of_the_viewed_period_and_back_returns_to_tabs(
+    app: AppTest,
+) -> None:
+    invoice = import_document(
+        RawDocument.from_json(FIXTURES / "new_layout_net_metering_monthly.json")
+    ).invoice
+    assert invoice is not None
+    repo = SqliteRepository(database_path())
+    repo.add_metering_point(HOME)
+    repo.add_invoice(invoice)
+    repo.close()
+    app.run()
+
+    next(b for b in app.button if b.label == "Pokaż Fakturę").click().run()
+
+    assert app.query_params["faktura"] == invoice.number
+    assert invoice.number in app.title[0].value
+    next(b for b in app.button if b.label == "Wróć").click().run()
+    assert "faktura" not in app.query_params
+    assert [t.label for t in app.tabs] == ["Przegląd", "Koszty i Faktury"]
+
+
+def test_correcting_invoice_page_shows_amount_after_correction(app: AppTest) -> None:
+    invoice = import_document(
+        RawDocument.from_json(FIXTURES / "old_layout_correcting_standard.json")
+    ).invoice
+    assert invoice is not None
+    repo = SqliteRepository(database_path())
+    repo.add_metering_point(replace(HOME, ppe_number=invoice.header.ppe_number))
+    repo.add_invoice(invoice)
+    repo.close()
+    app.query_params["faktura"] = invoice.number
+
+    app.run()
+
+    assert not app.exception
+    due = app.metric[-1]
+    assert (due.label, due.value) == ("Do zwrotu", "12,30 zł")
+    first_columns = [str(v) for t in app.table for v in t.value.iloc[:, 0]]
+    assert "Do zwrotu po korekcie" in first_columns

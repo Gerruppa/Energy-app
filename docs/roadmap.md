@@ -108,7 +108,7 @@ Otwarte pytania:
 
 ## F7. Zestawienie do druku
 
-**Status:** gotowe do specyfikacji
+**Status:** w trakcie. Zrobione: „Faktura po ludzku” (#7): widok Faktury drukuje się na 1 stronie A4 bez nawigacji, rozwinięta pełna lista Pozycji faktury na 2. stronie. Zostało: Podsumowanie roku.
 
 Wydruk dla jednego PPE do segregatora: A4, z przeglądarki (Ctrl+P → drukarka albo „Zapisz jako PDF”), osobny styl druku bez zakładek i przycisków, czytelny w czerni i bieli, prostym językiem.
 - **Faktura po ludzku** (MVP): jedna strona na Fakturę — okres, Podstawa rozliczenia, pobrane i oddane, ruch w Magazynie energii, Koszt okresu z opisem grup kosztów, Saldo po Fakturze, ten sam miesiąc rok wcześniej.
@@ -125,7 +125,7 @@ Kreator przy pierwszym uruchomieniu i dodawanie kolejnych PPE w ustawieniach. Do
 
 ## F9. Okresy i widok Faktury
 
-**Status:** w trakcie (MVP). Zrobione: przełącznik Okresu widoku w adresie strony, Przegląd i Koszty i Faktury filtrowane Okresem widoku, informacja, z której Faktury wyliczono Okres widoku (#8). Zostały: widok Faktury i link do niego z widoku miesiąca (#7), kafelki ze stanem na koniec Okresu widoku (#9, #10). „Analogiczny okres” z Faktury używany tylko, gdy Faktury pokrywają Okres widoku dokładnie (np. miesiąc z własną Fakturą).
+**Status:** w trakcie (MVP). Zrobione: przełącznik Okresu widoku w adresie strony, Przegląd i Koszty i Faktury filtrowane Okresem widoku, informacja, z której Faktury wyliczono Okres widoku (#8); widok Faktury (`&faktura=…`) otwierany z listy Faktur i z Przeglądu, strzałki poprzednia / następna, „pokaż ten okres w Przeglądzie” (najmniejszy miesiąc, kwartał albo rok obejmujący Okres rozliczeniowy), rok wcześniej z rozkładu na miesiące (≈ dla części dłuższej Faktury) obok wartości Taurona (#7). Zostały: kafelki ze stanem na koniec Okresu widoku (#9, #10), wejście z osi czasu. „Analogiczny okres” z Faktury używany tylko, gdy Faktury pokrywają Okres widoku dokładnie (np. miesiąc z własną Fakturą).
 
 - Przełącznik Okresu widoku pod nazwą PPE: Cały okres · Rok · Kwartał · Miesiąc, strzałki ◀ ▶ do sąsiednich okresów; działa we wszystkich zakładkach. Kafelki ze stanem (Magazyn energii, Saldo) pokazują stan na koniec Okresu widoku; rok do roku = ten sam Okres widoku rok wcześniej.
 - Okres widoku wycięty z dłuższej Faktury oznaczony ≈ ze zdaniem, z której Faktury wyliczony; okresy pokryte miesięcznymi Fakturami są dokładne.

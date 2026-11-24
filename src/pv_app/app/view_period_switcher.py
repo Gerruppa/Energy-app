@@ -9,8 +9,7 @@ import streamlit as st
 
 from pv_app.domain.invoice import DateRange
 from pv_app.domain.view_period import ViewPeriod, ViewPeriodKind
-
-QUERY_KEY = "okres"
+from pv_app.features.navigation import VIEW_PERIOD_QUERY_KEY as QUERY_KEY
 
 
 def _set(period: ViewPeriod) -> None:

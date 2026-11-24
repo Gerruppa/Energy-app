@@ -48,3 +48,9 @@ class InMemoryRepository:
 
     def find_source_file(self, sha256: str) -> SourceFile | None:
         return self._source_files.get(sha256)
+
+    def find_source_file_for(self, document_number: str) -> SourceFile | None:
+        return next(
+            (f for f in self._source_files.values() if f.invoice_number == document_number),
+            None,
+        )

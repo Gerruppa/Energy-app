@@ -126,6 +126,20 @@ def test_source_file_is_found_by_its_hash(repository: Repository) -> None:
     assert repository.find_source_file("cd" * 32) is None
 
 
+def test_source_file_is_found_by_the_number_of_its_document(repository: Repository) -> None:
+    source_file = SourceFile(
+        sha256="ab" * 32,
+        file_name="faktura.pdf",
+        archive_name="abababababab-faktura.pdf",
+        invoice_number="T/K1/BN000001/0004/26",
+    )
+
+    repository.add_source_file(source_file)
+
+    assert repository.find_source_file_for("T/K1/BN000001/0004/26") == source_file
+    assert repository.find_source_file_for("T/K1/BN000001/0099/26") is None
+
+
 def fixture_debit_note() -> DebitNote:
     note = import_document(RawDocument.from_json(FIXTURES / "debit_note_correction.json"))
     assert note.debit_note is not None

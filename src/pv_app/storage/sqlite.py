@@ -175,3 +175,11 @@ class SqliteRepository:
             (sha256,),
         ).fetchone()
         return SourceFile(*row) if row else None
+
+    def find_source_file_for(self, document_number: str) -> SourceFile | None:
+        row = self._connection.execute(
+            "SELECT sha256, file_name, archive_name, invoice_number FROM source_file"
+            " WHERE invoice_number = ? ORDER BY rowid LIMIT 1",
+            (document_number,),
+        ).fetchone()
+        return SourceFile(*row) if row else None

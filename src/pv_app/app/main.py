@@ -8,6 +8,8 @@ from pv_app.app.view_period_switcher import current_view_period, render_view_per
 from pv_app.app.wizard_page import ADDING_METERING_POINT, render_naming_step, render_wizard
 from pv_app.features import available_features
 from pv_app.features.base import FeatureContext, invoice_extent
+from pv_app.features.invoice_view.page import render_invoice_page
+from pv_app.features.navigation import requested_invoice
 from pv_app.storage.archive import FileArchive
 from pv_app.storage.sqlite import SqliteRepository
 
@@ -39,17 +41,20 @@ try:
             st.rerun()
         requested = st.query_params.get("ppe")
         point = next((p for p in metering_points if p.slug == requested), metering_points[0])
-        st.title(f"{point.icon.emoji} {point.name}")
-        st.caption(point.address)
         extent = invoice_extent(repository, point.ppe_number)
         view_period = current_view_period(extent)
-        render_view_period_switcher(view_period, extent)
-        features = available_features(point)
         context = FeatureContext(
             repository=repository, metering_point=point, view_period=view_period
         )
-        for tab, feature in zip(st.tabs([f.title for f in features]), features, strict=True):
-            with tab:
-                feature.render(context)
+        if (invoice_number := requested_invoice()) is not None:
+            render_invoice_page(context, archive, invoice_number)
+        else:
+            st.title(f"{point.icon.emoji} {point.name}")
+            st.caption(point.address)
+            render_view_period_switcher(view_period, extent)
+            features = available_features(point)
+            for tab, feature in zip(st.tabs([f.title for f in features]), features, strict=True):
+                with tab:
+                    feature.render(context)
 finally:
     repository.close()
