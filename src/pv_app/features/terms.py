@@ -25,5 +25,5 @@ def seller_share_help(discount_coefficient: Decimal) -> str:
 ESTIMATE_HELP = (
     "Faktura podaje tylko stan łączny Magazynu energii. Podział na porcje i daty Wygaśnięcia "
     f"to szacunek: każda porcja wygasa {EXPIRY_MONTHS} miesięcy po końcu okresu, w którym "
-    "oddaliście prąd, a Opust zdejmowany jest najpierw z najstarszej porcji."
+    "oddaliście prąd, a prąd pobrany z Magazynu bierzemy najpierw z najstarszej porcji."
 )

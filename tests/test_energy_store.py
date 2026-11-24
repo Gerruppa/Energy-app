@@ -39,7 +39,11 @@ def test_used_kwh_come_from_the_oldest_portion_first() -> None:
         ("F/1", Decimal("20")),
         ("F/2", Decimal("30")),
     ]
-    assert store.movements[-1].discount_kwh == Decimal("20")
+    # Z 100 kWh pobranych w lutym 20 kWh pokrył Magazyn energii.
+    assert (store.movements[-1].imported_kwh, store.movements[-1].discount_kwh) == (
+        Decimal("100"),
+        Decimal("20"),
+    )
 
 
 DECEMBER_2024 = DateRange(date(2024, 12, 1), date(2024, 12, 31))

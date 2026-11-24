@@ -72,7 +72,8 @@ def store_figure(view: EnergyStoreView) -> go.Figure:
                 f"Magazyn energii {fmt.day(m.period.end)}: {fmt.kwh(m.end_kwh)}<br>"
                 f"Przybyło: +{fmt.kwh(m.credited_kwh)} (oddane × "
                 f"{fmt.decimal_pl(m.discount_coefficient)})<br>"
-                f"Opust: −{fmt.kwh(m.discount_kwh)}<br>"
+                f"Pobrane z sieci: {fmt.kwh(m.imported_kwh)}, w tym z Magazynu energii "
+                f"{fmt.kwh(m.discount_kwh)}<br>"
                 f"Udział Sprzedawcy: {fmt.kwh(m.seller_share_kwh)}<br>"
                 f"{fmt.source(m.end_source)}"
                 for m in invoices

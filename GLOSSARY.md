@@ -114,8 +114,8 @@ Część Energii oddanej, która nie trafia do Magazynu energii (1 − Współcz
 _Avoid_: strata, prowizja
 
 **Opust**:
-kWh z Magazynu energii odliczone od Energii pobranej na Fakturze.
-_Avoid_: rabat, zniżka
+kWh z Magazynu energii odliczone od Energii pobranej na Fakturze. Na ekranie: „w tym z Magazynu energii” przy pobranych z sieci; słowo „Opust” tylko w podpowiedziach, jako nazwa z Faktury.
+_Avoid_: rabat, zniżka, zużyte (z Magazynu energii)
 
 ## Koszty
 

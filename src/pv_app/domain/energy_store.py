@@ -70,6 +70,8 @@ class StoreMovement:
     """Współczynnik opustu z Faktury."""
     seller_share_kwh: Decimal = Decimal(0)
     """Udział Sprzedawcy: Energia oddana, która nie trafiła do Magazynu energii."""
+    imported_kwh: Decimal = Decimal(0)
+    """Energia pobrana w okresie; Opust to jej część pokryta z Magazynu energii."""
 
 
 @dataclass(frozen=True)
@@ -226,6 +228,7 @@ class EnergyStore:
                 end_source=store.source,
                 discount_coefficient=store.discount_coefficient,
                 seller_share_kwh=store.seller_share_kwh,
+                imported_kwh=store.imported_kwh,
             )
             snapshots.append(_Snapshot(previous, tuple(portions)))
         return cls(tuple(snapshots))

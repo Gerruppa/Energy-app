@@ -161,11 +161,12 @@ def test_energy_store_tab_and_overview_tile_show_state_from_invoice(app: AppTest
     assert store.metric[0].label == "Magazyn energii"
     assert "nie bateria" in (store.metric[0].help or "")
     movements = store.dataframe[0].value
-    assert list(movements.columns[:6]) == [
+    assert list(movements.columns[:7]) == [
         "Okres",
         "Na start",
         "+ przybyło (×0,8)",
-        "− Opust",
+        "Pobrane z sieci",
+        "− w tym z Magazynu",
         "− wygasło",
         "Na koniec",
     ]

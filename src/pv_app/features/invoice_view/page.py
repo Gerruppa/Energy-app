@@ -71,8 +71,8 @@ TERMS = {
     ),
     "store_added": "Energia oddana × Współczynnik opustu: tyle przybyło w Magazynie energii.",
     "discount_kwh": (
-        "Opust: kWh z Magazynu energii odliczone od Energii pobranej. Za nie nie płacicie ceny "
-        "energii ani dystrybucji zmiennej."
+        "Część prądu pobranego z sieci pokryta z Magazynu energii (na Fakturze: Opust). "
+        "Za te kWh nie płacicie ceny energii ani dystrybucji zmiennej."
     ),
     "seller_share": (
         "Część Energii oddanej, która nie trafia do Magazynu energii "
@@ -327,7 +327,7 @@ def _render_energy_settlement(invoice: Invoice) -> None:
             f"+{fmt.kwh(store.exported_after_coefficient_kwh)}",
             TERMS["store_added"],
         ),
-        ("Opust (odebrane)", f"−{fmt.kwh(invoice.discount_kwh)}", TERMS["discount_kwh"]),
+        ("W tym z Magazynu energii", f"−{fmt.kwh(invoice.discount_kwh)}", TERMS["discount_kwh"]),
         ("Udział Sprzedawcy", fmt.kwh(store.seller_share_kwh), TERMS["seller_share"]),
         ("Magazyn energii na koniec", fmt.kwh(store.store_end_kwh), None),
     ]

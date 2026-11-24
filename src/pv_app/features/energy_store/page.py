@@ -87,7 +87,7 @@ def _portion_text(portion: Portion, state: StoreState) -> str:
 def _render_movements(view: EnergyStoreView, period_label: str) -> None:
     st.subheader(
         "Ruch w Magazynie energii, Faktura po Fakturze",
-        help="W każdym wierszu: na start + przybyło − Opust − wygasło = na koniec. "
+        help="W każdym wierszu: na start + przybyło − w tym z Magazynu − wygasło = na koniec. "
         "Wygaśnięcie widać jako spadek stanu na start Faktury poniżej stanu na koniec "
         "poprzedniej Faktury; Faktura nie podaje go wprost.",
     )
@@ -103,7 +103,8 @@ def _render_movements(view: EnergyStoreView, period_label: str) -> None:
     )
     st.caption(
         "Kliknij wiersz, żeby otworzyć Fakturę po ludzku. Stany na start i na koniec są "
-        "z Faktur. Opust to kWh odebrane z Magazynu energii: na start + przybyło − na koniec. "
+        "z Faktur. „W tym z Magazynu” to część prądu pobranego z sieci pokryta z Magazynu "
+        "energii (na Fakturze: Opust): na start + przybyło − na koniec. "
         "Wygasło: stan na koniec poprzedniej Faktury minus stan na start następnej."
     )
 
@@ -123,7 +124,8 @@ def _movement_entry(movement: StoreMovement) -> dict[str, object]:
         "Okres": label,
         "Na start": fmt.kwh(movement.start_kwh),
         f"+ przybyło (×{coefficient})": change("+", movement.credited_kwh),
-        "− Opust": change("−", movement.discount_kwh),
+        "Pobrane z sieci": change("", movement.imported_kwh),
+        "− w tym z Magazynu": change("−", movement.discount_kwh),
         "− wygasło": change("−", movement.expired_kwh),
         "Na koniec": fmt.kwh(movement.end_kwh),
         "Udział Sprzedawcy": change("", movement.seller_share_kwh),
