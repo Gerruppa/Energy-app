@@ -43,7 +43,7 @@ Pozycje faktury są klasyfikowane do kategorii z `GLOSSARY.md` (Składnik zmienn
 
 ### ingest
 
-Głęboki moduł z jednym wejściem: `import_file(path) -> ImportResult`. W środku:
+Głęboki moduł z jednym wejściem: `import_file(path) -> ImportResult` (oraz `import_document(RawDocument)` dla surowych wierszy, używane w testach na fixture'ach). `import_file` niczego nie zapisuje; zapis robi wywołujący (kreator, strona importu). W środku:
 
 1. rozpoznaje rodzaj pliku (faktura Tauron PDF, eksport eLicznika),
 2. wybiera parser (adapter) dla tego rodzaju,
@@ -51,13 +51,13 @@ Głęboki moduł z jednym wejściem: `import_file(path) -> ImportResult`. W śro
 
 Seam leży między rozpoznaniem a parserem: gdy Tauron zmieni układ faktury, dochodzi nowy parser obok starego, a reszta aplikacji się nie zmienia.
 
-Każdy parser faktur ma dwa etapy (ADR 0005): cienki adapter PDF → surowe wiersze i tabele (pdfplumber) oraz głęboki moduł surowe wiersze → Faktura. Głęboki moduł testowany jest na zanonimizowanych zrzutach wierszy w `tests/fixtures/`. Po parsowaniu Faktura przechodzi kontrolę sum (pozycje = Wynik rozliczenia, bilans Magazynu energii); niezgodna jest odrzucana z opisem przyczyny.
+Każdy parser faktur ma dwa etapy (ADR 0005): cienki adapter PDF → surowe wiersze i tabele (pdfplumber) oraz głęboki moduł surowe wiersze → Faktura. Głęboki moduł testowany jest na zanonimizowanych zrzutach wierszy w `tests/fixtures/` (JSON: `{"pages": [[wiersz, …], …]}`). Po parsowaniu Faktura przechodzi kontrolę sum (`domain/invoice_checks.py`: pozycje = Wynik rozliczenia, Do zapłaty, bilans Magazynu energii); niezgodna jest odrzucana z opisem przyczyny. Każda część Faktury (nagłówek, odczyt, Pozycja, Rozliczenie OZE, podsumowanie, Prognoza) niesie `Source` (numer Faktury, strona PDF-a).
 
 ### storage
 
 Interfejs `Repository`: zapis obiektów domeny i zapytania potrzebne funkcjom (Faktury dla PPE w zakresie dat, Profil godzinowy, Ładowania). Dwa adaptery: SQLite (aplikacja) i w pamięci (testy funkcji).
 
-Import jest idempotentny: Faktura identyfikowana numerem faktury, odczyt godzinowy parą (PPE, godzina), plik źródłowy hashem. Faktura korygująca zastępuje wartości korygowanej Faktury, a obie zostają w bazie. Wgrany plik jest kopiowany do `data/archive/`, żeby bazę dało się odbudować z plików.
+Adapter SQLite zapisuje Fakturę w całości jako JSON (`storage/codec.py`) z kolumnami do zapytań obok; schemat ma wersje (`PRAGMA user_version`) i migruje się przy starcie. Import jest idempotentny: Faktura identyfikowana numerem faktury, odczyt godzinowy parą (PPE, godzina), plik źródłowy hashem. Faktura korygująca zastępuje wartości korygowanej Faktury, a obie zostają w bazie. Wgrany plik jest kopiowany do `data/archive/`, żeby bazę dało się odbudować z plików.
 
 ### features
 
@@ -66,7 +66,7 @@ Każda funkcja dashboardu to pakiet `features/<nazwa>/` z dwiema częściami:
 - `analysis.py`: czyste funkcje `(Repository, Filters) → wynik`, testowane bez Streamlita na adapterze w pamięci;
 - `page.py`: obiekt `Feature` (id, tytuł, kolejność, `is_available(ppe)`, `render(context)`), który rysuje wynik analizy. `is_available` decyduje, czy zakładka pojawia się dla danego PPE (np. Magazyn energii tylko przy net-meteringu, Dzień po dniu tylko z danymi eLicznika).
 
-`Filters` to jeden PPE i Okres widoku (cały okres, rok, kwartał, miesiąc); analizy zwracają też stan na koniec Okresu widoku i ten sam okres rok wcześniej. Widok zawsze dotyczy jednego PPE, bez sum ani porównań między PPE. PPE, ich nazwy i ustawienia (np. ładowanie auta) są danymi w `storage`, dodawanymi przez kreator, nie stałymi w kodzie. Funkcje rejestrują się w `features/__init__.py`; dodanie funkcji to nowy pakiet plus jedna linia w rejestrze, bez zmian w `app` ani w innych funkcjach.
+Dopóki nie ma Okresu widoku (#8), analizy przyjmują sam numer PPE. `Filters` to jeden PPE i Okres widoku (cały okres, rok, kwartał, miesiąc); analizy zwracają też stan na koniec Okresu widoku i ten sam okres rok wcześniej. Widok zawsze dotyczy jednego PPE, bez sum ani porównań między PPE. PPE, ich nazwy i ustawienia (np. ładowanie auta) są danymi w `storage`, dodawanymi przez kreator, nie stałymi w kodzie. Funkcje rejestrują się w `features/__init__.py`; dodanie funkcji to nowy pakiet plus jedna linia w rejestrze, bez zmian w `app` ani w innych funkcjach.
 
 ### app
 

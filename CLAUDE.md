@@ -39,7 +39,7 @@ Gotowe, gdy testy są zielone, commit jest wypchnięty, a każde kryterium akcep
 Python i biblioteki zarządza `uv` (ADR 0001). Gdy `uv` nie jest w PATH (sesja otwarta przed instalacją), uruchom go pełną ścieżką `%LOCALAPPDATA%\Microsoft\WinGet\Links\uv.exe`. Python 3.14 (`.python-version`).
 
 - Start aplikacji: dwuklik w `Start.bat` (przy pierwszym starcie instaluje uv i zależności) albo `uv run python -m pv_app`; adres `http://localhost:8501`.
-- Testy: `uv run pytest`; pojedynczy plik: `uv run pytest tests/test_repository.py`.
+- Testy: `uv run pytest`; pojedynczy plik: `uv run pytest tests/test_repository.py`. `tests/test_real_invoices.py` czyta prawdziwe PDF-y z `References/` (ok. 30 s), a bez tego katalogu jest pomijany.
 - Typy i styl: `uv run mypy`, `uv run ruff check .`, `uv run ruff format .`.
 - CI: `.github/workflows/tests.yml` uruchamia ruff, mypy i pytest na Windows przy każdym pushu na `main`.
 - Katalog danych: `data/` obok aplikacji; w testach podmieniany zmienną `PV_APP_DATA_DIR`.

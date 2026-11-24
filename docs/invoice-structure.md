@@ -33,3 +33,22 @@ Prefiks numeru wskazuje PPE: Dom ma inną serię niż Mieszkanie. Numer faktury 
 - **Tekst warstwowy:** `pdftotext -layout` miesza kolumny w starym układzie; parser powinien czytać tabele po współrzędnych (pdfplumber), a nowy układ da się czytać wierszami.
 - **Magazyn energii nie sumuje się wprost:** stan „Energia z magazynu” na początku okresu bywa niższy niż stan końcowy z poprzedniej faktury (spadek o kilkadziesiąt kWh między kolejnymi miesiącami): różnica to porcje, które wygasły po 12 miesiącach. Faktura nie podaje wygasania wprost.
 - **Duplikaty plików:** te same PDF-y pod różnymi nazwami (`_1`, `-1`); import rozpoznaje je po hashu.
+
+## Nowy układ: warianty i pułapki (parser z #3)
+
+Parser: `src/pv_app/ingest/new_layout.py`. Sprawdzony lokalnie na wszystkich Fakturach w nowym układzie z `References/`; fixture'y z wymyślonymi liczbami w `tests/fixtures/new_layout_*.json`.
+
+- **Tekst z PDF-a:** pogrubienia są drukowane trzykrotnie w tym samym miejscu (`SSSppprrr…`), więc adapter używa `dedupe_chars()`; kody QR i kreskowe dają ciągi `(cid:N)`, które adapter usuwa.
+- **Rozpoznanie:** strona podsumowania `Dzień dobry, to jest podsumowanie Twojej faktury` (PPE, nazwa obiektu, adres, częstotliwość) i strona `To jest Twoja faktura` (tekst bywa sklejony: `Twojafaktura`) z numerem, datami, taryfą, mocą i podsumowaniem rozliczenia.
+- **Dwa warianty w nowym układzie:**
+  - Faktury wystawione w XII 2025 – III 2026: daty `dd/mm/rrrr`, etykiety `Sprzedaży energii elektrycznej`, `Świadczonych usług dystrybucji`, `Wartość prognozy z poprzedniej faktury`, `Do zapłaty ( 3 + 4 )`, tabela PPE `Numer Punktu Poboru Energii Grupa taryfowa Moc umowna`, kody Typu odczytu `(Z)`, `(O)`;
+  - Faktury wystawione od IX 2026 (z IV–VIII 2026 nie ma Faktur w danych, więc dokładny moment zmiany jest nieznany): daty `dd.mm.rrrr`, etykiety `Sprzedaż …`, `Dystrybucja energii elektrycznej`, `Prognoza z poprzedniej faktury`, `Wpłaty dodatkowe`, `Razem (3-4)` / `NIEDOPŁATA (3+4)`, Typ odczytu słowem (`(Zdalny)` albo `Zdalny` w kolumnie).
+- **Liczniki:** przy net-meteringu tabela podaje tylko ilość za okres (`całodobowa 31.10.2026 (Zdalny) 150,0000`), bez stanów. Bez fotowoltaiki są stany poprzedni / bieżący, ilość, straty i razem, czasem z kolumną `Mnożna`. Mnożna `1` przed ilością wygląda jak odstęp tysięcy (`520,0000 1 230,0000`), dlatego parser wybiera wzór wiersza po nagłówku `Mnożna`, nie po samych liczbach.
+- **Podokresy Pozycji faktury:** nowy układ nie drukuje dat podokresów, tylko kolejne wiersze tego samego składnika (także `0 mc`). Pozycja faktury zapisuje więc numer podokresu (kolejność na Fakturze), nie zakres dat.
+- **Składnik na dwóch stronach:** nagłówek składnika (np. `Opłata kogeneracyjna`) bywa na końcu strony, a jego wiersze na następnej, po powtórzonym nagłówku kolumn.
+- **Harmonogram Prognoz:** trzy wiersze na Prognozę: numer blankietu (`<numer Faktury>/<n>`), kwoty z terminem, okres. Przy net-meteringu są dwie kolumny kWh (`Pobór Oddanie`).
+- **Saldo:** tylko zdanie `Na Państwa koncie pozostała NADPŁATA|NIEDOPŁATA w kwocie …`; zdanie `Twoja NADPŁATA … została uwzględniona w płatnościach` dotyczy kwoty do zapłaty, nie Salda.
+- **Akcyza:** pierwsze zdanie `Od X kWh sprzedawca odprowadzi akcyzę …` na stronie rozliczenia dotyczy Faktury; drugie (pod harmonogramem) dotyczy Prognoz.
+- **Opust:** Faktura nie podaje go wprost. Liczony jako Energia pobrana minus kWh energii czynnej na Fakturze; bilans Magazynu energii: start + przyrost (po Współczynniku opustu) − Opust = koniec.
+- **Kontrola sum:** suma brutto Pozycji = podsumowanie sprzedaży, dystrybucji i Wynik rozliczenia (tolerancja 0,02 zł); Do zapłaty = Wynik + Prognoza z poprzedniej Faktury − wpłaty dodatkowe; bilans Magazynu energii z tolerancją 2 kWh. Na prawdziwych Fakturach kwoty zgadzają się co do grosza, a Magazyn energii różni się najwyżej o 1 kWh (bilansowanie godzinowe).
+- **Podstawa rozliczenia:** szacunkowy Typ odczytu na którymkolwiek liczniku (pobór lub oddanie) oznacza odczyt szacunkowy dla całej Faktury.

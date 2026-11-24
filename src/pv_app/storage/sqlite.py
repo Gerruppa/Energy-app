@@ -1,24 +1,53 @@
 import sqlite3
 from pathlib import Path
 
-from pv_app.domain.metering_point import MeteringPoint
+from pv_app.domain.invoice import Invoice
+from pv_app.domain.metering_point import MeteringPoint, SiteIcon
+from pv_app.storage.codec import from_json, to_json
 
-_SCHEMA = """
-CREATE TABLE IF NOT EXISTS metering_point (
-    ppe_number TEXT PRIMARY KEY,
-    name       TEXT NOT NULL,
-    slug       TEXT NOT NULL UNIQUE
-);
-"""
+_MIGRATIONS = (
+    """
+    CREATE TABLE IF NOT EXISTS metering_point (
+        ppe_number TEXT PRIMARY KEY,
+        name       TEXT NOT NULL,
+        slug       TEXT NOT NULL UNIQUE
+    );
+    """,
+    """
+    ALTER TABLE metering_point ADD COLUMN icon TEXT NOT NULL DEFAULT 'inne';
+    ALTER TABLE metering_point ADD COLUMN charges_car INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE metering_point ADD COLUMN address TEXT NOT NULL DEFAULT '';
+    ALTER TABLE metering_point ADD COLUMN net_metering INTEGER NOT NULL DEFAULT 0;
+    CREATE TABLE invoice (
+        number       TEXT PRIMARY KEY,
+        ppe_number   TEXT NOT NULL,
+        period_start TEXT NOT NULL,
+        period_end   TEXT NOT NULL,
+        payload      TEXT NOT NULL
+    );
+    CREATE INDEX invoice_by_ppe ON invoice (ppe_number, period_start);
+    """,
+)
+"""Kolejne wersje schematu; ``PRAGMA user_version`` mówi, ile już wykonano."""
 
 
 class SqliteRepository:
-    """Repository w pliku SQLite, używane przez aplikację."""
+    """Repository w pliku SQLite, używane przez aplikację.
+
+    Faktura jest zapisana w całości jako JSON (``payload``); kolumny obok służą zapytaniom.
+    """
 
     def __init__(self, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         self._connection = sqlite3.connect(path)
-        self._connection.executescript(_SCHEMA)
+        self._migrate()
+
+    def _migrate(self) -> None:
+        (version,) = self._connection.execute("PRAGMA user_version").fetchone()
+        for number, script in enumerate(_MIGRATIONS[version:], version + 1):
+            with self._connection:
+                self._connection.executescript(script)
+                self._connection.execute(f"PRAGMA user_version = {number}")
 
     def close(self) -> None:
         self._connection.close()
@@ -26,12 +55,56 @@ class SqliteRepository:
     def add_metering_point(self, metering_point: MeteringPoint) -> None:
         with self._connection:
             self._connection.execute(
-                "INSERT INTO metering_point (ppe_number, name, slug) VALUES (?, ?, ?)",
-                (metering_point.ppe_number, metering_point.name, metering_point.slug),
+                "INSERT INTO metering_point"
+                " (ppe_number, name, slug, icon, charges_car, address, net_metering)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (
+                    metering_point.ppe_number,
+                    metering_point.name,
+                    metering_point.slug,
+                    metering_point.icon.value,
+                    metering_point.charges_car,
+                    metering_point.address,
+                    metering_point.net_metering,
+                ),
             )
 
     def list_metering_points(self) -> list[MeteringPoint]:
         rows = self._connection.execute(
-            "SELECT ppe_number, name, slug FROM metering_point ORDER BY rowid"
+            "SELECT ppe_number, name, slug, icon, charges_car, address, net_metering"
+            " FROM metering_point ORDER BY rowid"
         ).fetchall()
-        return [MeteringPoint(ppe_number=r[0], name=r[1], slug=r[2]) for r in rows]
+        return [
+            MeteringPoint(
+                ppe_number=r[0],
+                name=r[1],
+                slug=r[2],
+                icon=SiteIcon(r[3]),
+                charges_car=bool(r[4]),
+                address=r[5],
+                net_metering=bool(r[6]),
+            )
+            for r in rows
+        ]
+
+    def add_invoice(self, invoice: Invoice) -> None:
+        period = invoice.header.billing_period
+        with self._connection:
+            self._connection.execute(
+                "INSERT INTO invoice (number, ppe_number, period_start, period_end, payload)"
+                " VALUES (?, ?, ?, ?, ?)",
+                (
+                    invoice.number,
+                    invoice.header.ppe_number,
+                    period.start.isoformat(),
+                    period.end.isoformat(),
+                    to_json(invoice),
+                ),
+            )
+
+    def list_invoices(self, ppe_number: str) -> list[Invoice]:
+        rows = self._connection.execute(
+            "SELECT payload FROM invoice WHERE ppe_number = ? ORDER BY period_start, number",
+            (ppe_number,),
+        ).fetchall()
+        return [from_json(Invoice, r[0]) for r in rows]
