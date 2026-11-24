@@ -2,6 +2,7 @@ from decimal import Decimal
 
 import streamlit as st
 
+from pv_app.domain.energy_store import EXPIRING_SOON_MONTHS, StoreState
 from pv_app.domain.metering_point import MeteringPoint
 from pv_app.domain.view_period import ViewPeriodKind, month_label
 from pv_app.features import formatting as fmt
@@ -11,9 +12,11 @@ from pv_app.features.overview.analysis import (
     PeriodTotals,
     YearOverYear,
     energy_chart,
+    store_tile,
     year_over_year,
 )
 from pv_app.features.overview.chart import BLOCK_NOTE, energy_figure
+from pv_app.features.terms import ESTIMATE_HELP, store_help
 
 EXPORTED_HELP = (
     "Prąd z paneli, którego dom w danej chwili nie zużył i który popłynął do sieci. "
@@ -45,6 +48,10 @@ class OverviewFeature:
         if chart is None:
             st.info("Brak Faktur dla tego punktu poboru.")
             return
+        if point.net_metering:
+            tile = store_tile(context.repository, context.filters)
+            if tile is not None:
+                _render_store_tile(tile)
         title = (
             "Prąd miesiąc po miesiącu"
             if point.net_metering
@@ -221,4 +228,31 @@ def _render_invoices(current: PeriodTotals) -> None:
             key=f"overview_invoice_{ref.number}",
             on_click=open_invoice,
             args=(ref.number,),
+        )
+
+
+def _render_store_tile(state: StoreState) -> None:
+    """Kafelek Magazynu energii: stan z Faktury na koniec Okresu widoku."""
+    movement = state.movement
+    balance, expiring = st.columns(2)
+    with balance.container(border=True):
+        st.metric(
+            "Magazyn energii",
+            fmt.kwh(state.balance_kwh),
+            delta=f"+{fmt.kwh(movement.credited_kwh)} przybyło",
+            delta_color="normal",
+            help=store_help(movement.discount_coefficient),
+        )
+        st.caption(
+            f"Stan na {fmt.day(state.as_of)}; przybyło w okresie "
+            f"{fmt.period(movement.period)}. Źródło: {fmt.source(state.source)}."
+        )
+    with expiring.container(border=True):
+        st.metric(
+            f"Wygaśnie do {fmt.day(state.expiring_until)}",
+            fmt.kwh(state.expiring_kwh),
+            help=ESTIMATE_HELP,
+        )
+        st.caption(
+            f"Szacunek: porcje, których nie zdążycie odebrać w {EXPIRING_SOON_MONTHS} miesiące."
         )

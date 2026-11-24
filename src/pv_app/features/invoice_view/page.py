@@ -21,6 +21,7 @@ from pv_app.features.invoice_view.analysis import (
     invoice_sheet,
 )
 from pv_app.features.navigation import close_invoice, open_invoice
+from pv_app.features.terms import store_help
 from pv_app.storage.archive import FileArchive
 
 PRINT_STYLE = """
@@ -67,10 +68,6 @@ TERMS = {
     "net_metering": (
         "Energia oddana do sieci, pomnożona przez Współczynnik opustu, trafia do Magazynu "
         "energii i pomniejsza energię pobraną."
-    ),
-    "store": (
-        "Magazyn energii to nie bateria. To „konto” w Tauronie: za każdą kWh oddaną do sieci "
-        "dostajecie {coefficient} kWh do odebrania później, przez 12 miesięcy."
     ),
     "store_added": "Energia oddana × Współczynnik opustu: tyle przybyło w Magazynie energii.",
     "discount_kwh": (
@@ -322,7 +319,7 @@ def _render_energy_settlement(invoice: Invoice) -> None:
     store = invoice.energy_settlement
     assert store is not None
     coefficient = fmt.decimal_pl(store.discount_coefficient)
-    st.subheader("Rozliczenie OZE", help=TERMS["store"].format(coefficient=coefficient))
+    st.subheader("Rozliczenie OZE", help=store_help(store.discount_coefficient))
     figures: list[tuple[str, str, str | None]] = [
         ("Magazyn energii na początku", fmt.kwh(store.store_start_kwh), None),
         (

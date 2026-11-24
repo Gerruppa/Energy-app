@@ -71,8 +71,8 @@ def test_costs_tab_lists_invoices_of_the_metering_point(app: AppTest) -> None:
     app.run()
 
     assert not app.exception
-    assert [t.label for t in app.tabs] == ["Przegląd", "Koszty i Faktury"]
-    table = app.tabs[1].dataframe[0].value
+    assert [t.label for t in app.tabs] == ["Przegląd", "Magazyn energii", "Koszty i Faktury"]
+    table = app.tabs[2].dataframe[0].value
     assert list(table["Okres"]) == ["01.10.2026 – 31.10.2026"]
     assert list(table["Podstawa rozliczenia"]) == ["🟢 odczyt rzeczywisty"]
     assert list(table["Koszt okresu"]) == ["32,04 zł"]
@@ -141,13 +141,34 @@ def test_view_period_is_kept_in_page_address_and_filters_every_tab(app: AppTest)
 
     assert not app.exception
     assert "**wrzesień 2026**" in [m.value for m in app.markdown]
-    costs = app.tabs[1]
+    costs = app.tabs[2]
     assert [i.value for i in costs.info] == ["Brak Faktur za wrzesień 2026."]
 
     next(b for b in app.button if b.label == "▶").click().run()
 
     assert app.query_params["okres"] == "2026-10"
-    assert len(app.tabs[1].dataframe) == 1
+    assert len(app.tabs[2].dataframe) == 1
+
+
+def test_energy_store_tab_and_overview_tile_show_state_from_invoice(app: AppTest) -> None:
+    _home_with_october_invoice()
+
+    app.run()
+
+    assert not app.exception
+    overview, store = app.tabs[0], app.tabs[1]
+    assert [m.label for m in overview.metric][:1] == ["Magazyn energii"]
+    assert store.metric[0].label == "Magazyn energii"
+    assert "nie bateria" in (store.metric[0].help or "")
+    movements = store.dataframe[0].value
+    assert list(movements.columns[:6]) == [
+        "Okres",
+        "Na start",
+        "+ przybyło (×0,8)",
+        "− Opust",
+        "− wygasło",
+        "Na koniec",
+    ]
 
 
 def test_switching_kind_keeps_the_viewed_moment(app: AppTest) -> None:
@@ -176,6 +197,9 @@ def test_default_view_is_last_month_fully_covered_by_invoices(app: AppTest) -> N
 
     assert not app.exception
     assert "**luty 2026**" in [m.value for m in app.markdown]
+    # Bez net-meteringu nie ma zakładki Magazyn energii ani kafelka w Przeglądzie.
+    assert [t.label for t in app.tabs] == ["Przegląd", "Koszty i Faktury"]
+    assert not [m for m in app.metric if m.label == "Magazyn energii"]
 
 
 def test_invoice_page_opened_from_page_address_shows_invoice_in_plain_language(
@@ -239,7 +263,7 @@ def test_overview_opens_invoice_of_the_viewed_period_and_back_returns_to_tabs(
     assert invoice.number in app.title[0].value
     next(b for b in app.button if b.label == "Wróć").click().run()
     assert "faktura" not in app.query_params
-    assert [t.label for t in app.tabs] == ["Przegląd", "Koszty i Faktury"]
+    assert [t.label for t in app.tabs] == ["Przegląd", "Magazyn energii", "Koszty i Faktury"]
 
 
 def test_correcting_invoice_page_shows_amount_after_correction(app: AppTest) -> None:

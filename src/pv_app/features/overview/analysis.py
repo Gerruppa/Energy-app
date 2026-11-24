@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
+from pv_app.domain.energy_store import EnergyStore, StoreState
 from pv_app.domain.invoice import DateRange, Invoice, Source
 from pv_app.domain.monthly_split import MonthShare, split_into_months
 from pv_app.domain.period_cost import PeriodCosts
@@ -273,3 +274,11 @@ def energy_chart(repository: Repository, filters: Filters) -> EnergyChart | None
         year_earlier=tuple(b for b in earlier if visible(b)),
         missing_months=tuple(m for m in months if first <= m <= last and m not in with_invoice),
     )
+
+
+def store_tile(repository: Repository, filters: Filters) -> StoreState | None:
+    """Kafelek Magazynu energii: stan z Faktury na koniec Okresu widoku; ``None`` bez Faktur
+    z Rozliczeniem OZE albo bez Faktury zakończonej do końca Okresu widoku."""
+    dates = filters.view_period.dates
+    store = EnergyStore.from_invoices(repository.list_invoices(filters.ppe_number))
+    return store.state_on(dates.end if dates is not None else date.max)

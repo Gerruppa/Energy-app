@@ -76,3 +76,30 @@ def invoice_for(
             same_period_last_year_source=Source(number, 2) if last_year is not None else None,
         ),
     )
+
+
+def store_invoice(
+    period: DateRange,
+    start: str,
+    credited: str,
+    end: str,
+    *,
+    number: str | None = None,
+    exported: str | None = None,
+) -> Invoice:
+    """Faktura PPE ``HOME`` z ruchem w Magazynie energii: na start, przyrost (Energia oddana
+    × 0,8), na koniec; Rozliczenie OZE na stronie 4."""
+    exported = exported or str(Decimal(credited) / Decimal("0.8"))
+    invoice = invoice_for(period, "100", exported, number=number)
+    assert invoice.energy_settlement is not None
+    return replace(
+        invoice,
+        energy_settlement=replace(
+            invoice.energy_settlement,
+            store_start_kwh=Decimal(start),
+            discount_coefficient=Decimal("0.8"),
+            exported_after_coefficient_kwh=Decimal(credited),
+            seller_share_kwh=Decimal(exported) - Decimal(credited),
+            store_end_kwh=Decimal(end),
+        ),
+    )
