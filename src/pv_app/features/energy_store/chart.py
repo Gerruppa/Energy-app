@@ -75,7 +75,8 @@ def store_figure(view: EnergyStoreView) -> go.Figure:
                 f"Pobrane z sieci: {fmt.kwh(m.imported_kwh)}, w tym z Magazynu energii "
                 f"{fmt.kwh(m.discount_kwh)}<br>"
                 f"Udział Sprzedawcy: {fmt.kwh(m.seller_share_kwh)}<br>"
-                f"{fmt.source(m.end_source)}"
+                + (f"Zaokrąglenie Taurona: {fmt.kwh(m.rounding_kwh)}<br>" if m.rounding_kwh else "")
+                + fmt.source(m.end_source)
                 for m in invoices
             ],
             hoverinfo="text",

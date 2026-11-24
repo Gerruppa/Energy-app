@@ -19,6 +19,10 @@ from pv_app.features.navigation import open_invoice
 from pv_app.features.terms import ESTIMATE_HELP, seller_share_help, store_help
 
 MOVEMENTS_KEY = "store_movements"
+ROUNDING_HELP = (
+    "Zaokrąglenie Taurona: stan na koniec z Faktury różni się czasem o 1–2 kWh od bilansu "
+    "wiersza, bo Tauron rozlicza Magazyn energii godzina po godzinie i zaokrągla."
+)
 
 
 class EnergyStoreFeature:
@@ -87,15 +91,17 @@ def _portion_text(portion: Portion, state: StoreState) -> str:
 def _render_movements(view: EnergyStoreView, period_label: str) -> None:
     st.subheader(
         "Ruch w Magazynie energii, Faktura po Fakturze",
-        help="W każdym wierszu: na start + przybyło − w tym z Magazynu − wygasło = na koniec. "
-        "Wygaśnięcie widać jako spadek stanu na start Faktury poniżej stanu na koniec "
-        "poprzedniej Faktury; Faktura nie podaje go wprost.",
+        help="W każdym wierszu: na start + przybyło − w tym z Magazynu − wygasło = na koniec, "
+        f"z dokładnością do zaokrąglenia Taurona. {ROUNDING_HELP} Wygaśnięcie widać jako "
+        "spadek stanu na start Faktury poniżej stanu na koniec poprzedniej Faktury; Faktura "
+        "nie podaje go wprost.",
     )
     if not view.movements:
         st.info(f"Brak Faktur za {period_label}.")
         return
+    rounding = any(m.rounding_kwh for m in view.movements)
     st.dataframe(
-        [_movement_entry(m) for m in view.movements],
+        [_movement_entry(m, rounding) for m in view.movements],
         hide_index=True,
         key=MOVEMENTS_KEY,
         on_select=partial(_open_selected, [m.invoice_number for m in view.movements]),
@@ -104,12 +110,15 @@ def _render_movements(view: EnergyStoreView, period_label: str) -> None:
     st.caption(
         "Kliknij wiersz, żeby otworzyć Fakturę po ludzku. Stany na start i na koniec są "
         "z Faktur. „W tym z Magazynu” to część prądu pobranego z sieci pokryta z Magazynu "
-        "energii (na Fakturze: Opust): na start + przybyło − na koniec. "
-        "Wygasło: stan na koniec poprzedniej Faktury minus stan na start następnej."
+        "energii (na Fakturze: Opust): pobrane z sieci minus kWh, za które Faktura liczy "
+        "cenę energii. Wygasło: stan na koniec poprzedniej Faktury minus stan na start "
+        "następnej." + (f" {ROUNDING_HELP}" if rounding else "")
     )
 
 
-def _movement_entry(movement: StoreMovement) -> dict[str, object]:
+def _movement_entry(movement: StoreMovement, rounding: bool) -> dict[str, object]:
+    """Wiersz tabeli; z ``rounding`` także kolumna zaokrąglenia Taurona."""
+
     def change(sign: str, value: Decimal) -> str:
         return f"{sign}{fmt.kwh(value)}" if value else "—"
 
@@ -120,7 +129,7 @@ def _movement_entry(movement: StoreMovement) -> dict[str, object]:
         label = fmt.period(movement.period)
         source = fmt.source(movement.end_source)
     coefficient = fmt.decimal_pl(movement.discount_coefficient)
-    return {
+    entry: dict[str, object] = {
         "Okres": label,
         "Na start": fmt.kwh(movement.start_kwh),
         f"+ przybyło (×{coefficient})": change("+", movement.credited_kwh),
@@ -128,9 +137,14 @@ def _movement_entry(movement: StoreMovement) -> dict[str, object]:
         "− w tym z Magazynu": change("−", movement.discount_kwh),
         "− wygasło": change("−", movement.expired_kwh),
         "Na koniec": fmt.kwh(movement.end_kwh),
-        "Udział Sprzedawcy": change("", movement.seller_share_kwh),
-        "Źródło": source,
     }
+    if rounding:
+        entry["Zaokrąglenie Taurona"] = change(
+            "+" if movement.rounding_kwh > 0 else "", movement.rounding_kwh
+        )
+    entry["Udział Sprzedawcy"] = change("", movement.seller_share_kwh)
+    entry["Źródło"] = source
+    return entry
 
 
 def _open_selected(numbers: list[str]) -> None:

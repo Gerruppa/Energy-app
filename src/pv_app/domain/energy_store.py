@@ -47,7 +47,8 @@ class MovementKind(StrEnum):
 @dataclass(frozen=True)
 class StoreMovement:
     """Ruch w Magazynie energii: Okres rozliczeniowy Faktury albo Wygaśnięcie między
-    Fakturami. W każdym ruchu na start + przybyło − Opust − wygasło = na koniec."""
+    Fakturami. Na start + przybyło − Opust − wygasło = na koniec, z dokładnością do
+    zaokrąglenia Taurona (``rounding_kwh``)."""
 
     kind: MovementKind
     invoice_number: str
@@ -58,7 +59,8 @@ class StoreMovement:
     credited_kwh: Decimal
     """Przyrost: Energia oddana × Współczynnik opustu."""
     discount_kwh: Decimal
-    """Opust, wyliczony: na start + przyrost − na koniec."""
+    """Opust: część Energii pobranej pokryta z Magazynu energii, wyliczona z Faktury jak
+    ``Invoice.discount_kwh`` (Energia pobrana − kWh energii czynnej)."""
     expired_kwh: Decimal
     """Wygaśnięcie, wyliczone: stan na koniec poprzedniej Faktury − stan na start tej."""
     end_kwh: Decimal
@@ -72,6 +74,14 @@ class StoreMovement:
     """Udział Sprzedawcy: Energia oddana, która nie trafiła do Magazynu energii."""
     imported_kwh: Decimal = Decimal(0)
     """Energia pobrana w okresie; Opust to jej część pokryta z Magazynu energii."""
+
+    @property
+    def rounding_kwh(self) -> Decimal:
+        """O ile stan na koniec z Faktury różni się od bilansu ruchu (na start + przybyło −
+        Opust − wygasło); Tauron bilansuje godzinowo i zaokrągla, zwykle do 1 kWh."""
+        return self.end_kwh - (
+            self.start_kwh + self.credited_kwh - self.discount_kwh - self.expired_kwh
+        )
 
 
 @dataclass(frozen=True)
@@ -212,7 +222,7 @@ class EnergyStore:
                     add_months(period.end, EXPIRY_MONTHS),
                 )
             )
-            discount = start + credited - store.store_end_kwh
+            discount = invoice.discount_kwh
             _take(portions, discount)
             _match(portions, store.store_end_kwh)
             previous = StoreMovement(

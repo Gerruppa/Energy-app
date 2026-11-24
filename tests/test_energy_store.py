@@ -105,6 +105,23 @@ def test_total_follows_the_invoice_when_the_split_rounds_differently() -> None:
     assert sum(p.remaining_kwh for p in state.portions) == Decimal("51")
 
 
+def test_part_covered_by_the_store_is_the_invoice_opust_even_off_by_rounding() -> None:
+    # Bilans Magazynu daje 40 + 30 − 51 = 19, ale za energię czynną Faktura liczy 80 ze
+    # 100 kWh pobranych: Magazyn pokrył 20 kWh. Różnica 1 kWh to zaokrąglenie Taurona.
+    store = EnergyStore.from_invoices(
+        [
+            store_invoice(JANUARY, "0", "40", "40", number="F/1"),
+            store_invoice(FEBRUARY, "40", "30", "51", number="F/2", discount="20"),
+        ]
+    )
+
+    february = store.movements[-1]
+    assert (february.discount_kwh, february.rounding_kwh) == (Decimal("20"), Decimal("1"))
+    state = store.state_on(date(2026, 2, 28))
+    assert state is not None and state.balance_kwh == Decimal("51")
+    assert sum(p.remaining_kwh for p in state.portions) == Decimal("51")
+
+
 def test_start_of_first_invoice_is_a_portion_of_unknown_origin_used_first() -> None:
     store = EnergyStore.from_invoices([store_invoice(JANUARY, "25", "40", "55", number="F/1")])
 
