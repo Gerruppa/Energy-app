@@ -5,6 +5,7 @@ description = "Lokalny dashboard kosztów i zużycia energii z faktur Tauron"
 requires-python = ">=3.13"
 dependencies = [
     "pdfplumber>=0.11.11",
+    "plotly>=7.1.0",
     "streamlit>=1.40",
 ]
 
@@ -40,3 +41,7 @@ select = ["E", "F", "I", "B", "UP"]
 strict = true
 files = ["src", "tests", "scripts"]
 mypy_path = "src"
+
+[[tool.mypy.overrides]]
+module = ["plotly", "plotly.*"]
+ignore_missing_imports = true

@@ -53,6 +53,9 @@ _Avoid_: miesiąc (gdy okres nie jest miesiącem kalendarzowym)
 Zakres dat wybrany do oglądania: cały okres, rok, kwartał albo miesiąc. Nie musi pokrywać się z Okresem rozliczeniowym żadnej Faktury.
 _Avoid_: okres (bez doprecyzowania, gdy chodzi o wybór w widoku)
 
+**Rozkład na miesiące**:
+Podział Faktury na miesiące kalendarzowe: kWh i Składniki zmienne proporcjonalnie do dni, Składniki stałe po równo na miesiące okresu. Liczby Okresu widoku wycięte z dłuższej Faktury są oznaczone ≈; na wykresach taka Faktura to jeden blok ze średnią miesięczną.
+
 **Pozycja faktury**:
 Jedna linia kosztu na Fakturze: ilość, cena jednostkowa, kwota netto i brutto.
 _Avoid_: wiersz, opłata (jako ogólne słowo)

@@ -6,6 +6,7 @@ from decimal import Decimal
 
 from pv_app.domain.invoice import DateRange, DocumentKind, SettlementBasis, Source
 from pv_app.domain.period_cost import PeriodCosts
+from pv_app.features.base import Filters
 from pv_app.storage.repository import Repository
 
 
@@ -50,9 +51,10 @@ def _period_costs(repository: Repository, ppe_number: str) -> PeriodCosts:
     )
 
 
-def invoice_list(repository: Repository, ppe_number: str) -> list[InvoiceListRow]:
-    """Faktury PPE od najnowszego Okresu rozliczeniowego, także zastąpione korektą."""
-    costs = _period_costs(repository, ppe_number)
+def invoice_list(repository: Repository, filters: Filters) -> list[InvoiceListRow]:
+    """Faktury PPE od najnowszego Okresu rozliczeniowego, także zastąpione korektą; tylko te,
+    których Okres rozliczeniowy zachodzi na Okres widoku."""
+    costs = _period_costs(repository, filters.ppe_number)
     superseded = costs.superseded_invoices
     return [
         InvoiceListRow(
@@ -69,20 +71,26 @@ def invoice_list(repository: Repository, ppe_number: str) -> list[InvoiceListRow
             debit_notes=tuple(note.number for note in costs.debit_notes_for(invoice)),
         )
         for invoice in sorted(
-            costs.invoices,
+            (i for i in costs.invoices if _overlaps(i.header.billing_period, filters)),
             key=lambda i: (i.header.billing_period.start, i.header.issue_date, i.number),
             reverse=True,
         )
     ]
 
 
-def debit_note_list(repository: Repository, ppe_number: str) -> list[DebitNoteListRow]:
-    """Noty obciążeniowe PPE od najnowszej, z Fakturą, której okres pomniejszają."""
-    costs = _period_costs(repository, ppe_number)
+def debit_note_list(repository: Repository, filters: Filters) -> list[DebitNoteListRow]:
+    """Noty obciążeniowe PPE od najnowszej, z Fakturą, której okres pomniejszają; tylko te,
+    których data sprzedaży albo Faktura leży w Okresie widoku."""
+    costs = _period_costs(repository, filters.ppe_number)
     superseded = costs.superseded_debit_notes
     rows = []
     for note in reversed(costs.debit_notes):
         invoice = costs.invoice_for(note)
+        period = (
+            invoice.header.billing_period if invoice else DateRange(note.sale_date, note.sale_date)
+        )
+        if not _overlaps(period, filters):
+            continue
         rows.append(
             DebitNoteListRow(
                 number=note.number,
@@ -96,3 +104,8 @@ def debit_note_list(repository: Repository, ppe_number: str) -> list[DebitNoteLi
             )
         )
     return rows
+
+
+def _overlaps(period: DateRange, filters: Filters) -> bool:
+    dates = filters.view_period.dates
+    return dates is None or dates.overlaps(period)

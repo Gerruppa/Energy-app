@@ -21,10 +21,10 @@ class CostsFeature:
 
     def render(self, context: FeatureContext) -> None:
         point = context.metering_point
-        rows = invoice_list(context.repository, point.ppe_number)
+        rows = invoice_list(context.repository, context.filters)
         st.subheader("Faktury")
         if not rows:
-            st.info("Brak Faktur dla tego punktu poboru.")
+            st.info(f"Brak Faktur za {context.view_period.label}.")
         else:
             st.dataframe([_invoice_entry(row, point) for row in rows], hide_index=True)
             st.caption(
@@ -33,7 +33,7 @@ class CostsFeature:
                 "i nadpłat. Faktura zastąpiona Fakturą korygującą zostaje na liście, ale liczy "
                 "się korekta. 🟢 odczyt rzeczywisty, 🟡 odczyt szacunkowy."
             )
-        notes = debit_note_list(context.repository, point.ppe_number)
+        notes = debit_note_list(context.repository, context.filters)
         if notes:
             st.subheader("Noty obciążeniowe")
             st.dataframe([_note_entry(note) for note in notes], hide_index=True)

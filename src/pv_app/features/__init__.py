@@ -3,8 +3,9 @@
 from pv_app.domain.metering_point import MeteringPoint
 from pv_app.features.base import Feature
 from pv_app.features.costs.page import CostsFeature
+from pv_app.features.overview.page import OverviewFeature
 
-FEATURES: tuple[Feature, ...] = (CostsFeature(),)
+FEATURES: tuple[Feature, ...] = (OverviewFeature(), CostsFeature())
 
 
 def available_features(metering_point: MeteringPoint) -> list[Feature]:

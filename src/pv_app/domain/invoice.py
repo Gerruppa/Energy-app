@@ -24,6 +24,14 @@ class DateRange:
     def days(self) -> int:
         return (self.end - self.start).days + 1
 
+    def overlaps(self, other: "DateRange") -> bool:
+        """Zakresy mają choć jeden wspólny dzień."""
+        return self.start <= other.end and other.start <= self.end
+
+    def contains(self, other: "DateRange") -> bool:
+        """``other`` leży w całości w tym zakresie."""
+        return self.start <= other.start and other.end <= self.end
+
 
 class DocumentKind(StrEnum):
     SETTLEMENT_INVOICE = "Faktura rozliczeniowa"
@@ -320,3 +328,11 @@ class Invoice:
         if self.energy_settlement is None:
             return Decimal(0)
         return self.imported_kwh - self.billed_energy_kwh
+
+    @property
+    def energy_source(self) -> Source:
+        """Strona z Energią pobraną i oddaną: Rozliczenie OZE, a bez niego odczyt poboru."""
+        if self.energy_settlement is not None:
+            return self.energy_settlement.source
+        reading = next((r for r in self.readings if r.direction is MeterDirection.IMPORT), None)
+        return reading.source if reading is not None else self.summary.source

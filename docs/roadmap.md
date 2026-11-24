@@ -11,7 +11,7 @@ Statusy: **pomysł** → **do doprecyzowania** → **gotowe do implementacji** �
 
 ## Pierwsza wersja (MVP)
 
-**Status:** w trakcie (spec #1). Zrobione: szkielet aplikacji (#2): start dwuklikiem, ekran powitalny, `Repository` (SQLite i w pamięci), testy w CI; pierwsza Faktura przez kreator (#3): import Faktury w nowym układzie z kontrolą sum, kreator „Dodaj punkt poboru”, lista Faktur w Koszty i Faktury; import paczki (#4): strona „Wgraj Faktury”, duplikaty po hashu pliku i numerze Faktury, pytanie o nowy PPE, archiwum plików; Faktury w starym układzie (#5); Faktury korygujące i Noty obciążeniowe (#6).
+**Status:** w trakcie (spec #1). Zrobione: szkielet aplikacji (#2): start dwuklikiem, ekran powitalny, `Repository` (SQLite i w pamięci), testy w CI; pierwsza Faktura przez kreator (#3): import Faktury w nowym układzie z kontrolą sum, kreator „Dodaj punkt poboru”, lista Faktur w Koszty i Faktury; import paczki (#4): strona „Wgraj Faktury”, duplikaty po hashu pliku i numerze Faktury, pytanie o nowy PPE, archiwum plików; Faktury w starym układzie (#5); Faktury korygujące i Noty obciążeniowe (#6); Okres widoku i wykres miesiąc po miesiącu (#8): rozkład Faktur na miesiące, przełącznik Okresu widoku w adresie strony, zakładka Przegląd z wykresem oddane/pobrane i tabelą rok do roku.
 
 F1 + F1a + F0 + F2 + F3 w osobnych widokach PPE. Ustalenia z grillowania (XI 2026):
 - Import obu układów faktur (stary 2022–2025 i nowy), Faktur korygujących i Not obciążeniowych.
@@ -57,7 +57,7 @@ Upload PDF → Faktura z Pozycjami faktury, Okresem rozliczeniowym, odczytami, R
 
 ## F1a. Rozkład okresów na miesiące
 
-**Status:** pomysł (zależy od F1)
+**Status:** zrobione (#8). Rozkład: kWh i Składniki zmienne proporcjonalnie do dni, Składniki stałe po równo na miesiące okresu, reszta Kosztu okresu (zaokrąglenia, Bonifikaty) proporcjonalnie do dni. Na wykresach Faktura za kilka miesięcy to jeden płaski blok ze średnią miesięczną (suma / dni × 30,44), nie słupki z rozkładu; rozkład służy tabelom, Okresowi widoku i porównaniom. Dokładniejszy podział z Profilu godzinowego dojdzie z F4.
 
 Okresy rozliczeniowe mają od 1 do 12 miesięcy. Każdy okres rozkładany na miesiące kalendarzowe proporcjonalnie do liczby dni (później dokładniej z Profilu godzinowego), żeby wykresy miesięczne i porównania rok do roku były uczciwe. W UI zawsze widać, które miesiące pochodzą z rozkładu, a które z miesięcznej Faktury.
 
@@ -125,7 +125,7 @@ Kreator przy pierwszym uruchomieniu i dodawanie kolejnych PPE w ustawieniach. Do
 
 ## F9. Okresy i widok Faktury
 
-**Status:** gotowe do specyfikacji (MVP)
+**Status:** w trakcie (MVP). Zrobione: przełącznik Okresu widoku w adresie strony, Przegląd i Koszty i Faktury filtrowane Okresem widoku, informacja, z której Faktury wyliczono Okres widoku (#8). Zostały: widok Faktury i link do niego z widoku miesiąca (#7), kafelki ze stanem na koniec Okresu widoku (#9, #10). „Analogiczny okres” z Faktury używany tylko, gdy Faktury pokrywają Okres widoku dokładnie (np. miesiąc z własną Fakturą).
 
 - Przełącznik Okresu widoku pod nazwą PPE: Cały okres · Rok · Kwartał · Miesiąc, strzałki ◀ ▶ do sąsiednich okresów; działa we wszystkich zakładkach. Kafelki ze stanem (Magazyn energii, Saldo) pokazują stan na koniec Okresu widoku; rok do roku = ten sam Okres widoku rok wcześniej.
 - Okres widoku wycięty z dłuższej Faktury oznaczony ≈ ze zdaniem, z której Faktury wyliczony; okresy pokryte miesięcznymi Fakturami są dokładne.
