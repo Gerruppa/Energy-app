@@ -1,0 +1,28 @@
+{
+  "_comment": "Nota obciążeniowa korekta: bonifikata zmniejszona z kwoty POLICZONO do NALEŻAŁO POLICZYĆ; numery, nazwy, adresy i liczby wymyślone. Wiersz = tekst albo lista komórek tabeli.",
+  "pages": [
+    [
+      "Sprzedawca:",
+      ["40-000 TESTOWO, UL. PRZYKŁADOWA 9", "F Adresat: 60000002"],
+      "Kontakt z Wystawcą noty:",
+      "Nabywca:",
+      "ANNA TESTOWA",
+      "NOTA OBCIĄŻENIOWA KOREKTA NR TM3NBN000002/001 do noty nr T3N0000007 - wystawiona w",
+      "formie elektronicznej",
+      "Data sprzedaży: 01/02/2026",
+      "POLICZONO:",
+      ["Lp.", "Nazwa usługi", "Nr PPE", "Wartość [zł]"],
+      ["1", "Obniżka kwoty należności (Rozp. MKiŚ z 09.09.2023)", "590000000000000002", "60,00"],
+      ["Razem:", "60,00"],
+      "NALEŻAŁO POLICZYĆ:",
+      ["Lp.", "Nazwa usługi", "Nr PPE", "Wartość [zł]"],
+      ["1", "Obniżka kwoty należności (Rozp. MKiŚ z 09.09.2023)", "590000000000000002", "47,70"],
+      ["Razem:", "47,70"],
+      ["Do zapłaty:", "12,30 zł"],
+      ["Termin płatności:", "23/02/2026"],
+      "Słownie: dwanaście złotych 30/100",
+      ["Wystawił:", "Centrum Rozliczeń: B.B."],
+      ["Data wystawienia:", "07/02/2026"]
+    ]
+  ]
+}

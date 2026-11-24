@@ -1,6 +1,7 @@
 import sqlite3
 from pathlib import Path
 
+from pv_app.domain.debit_note import DebitNote
 from pv_app.domain.invoice import Invoice
 from pv_app.domain.metering_point import MeteringPoint, SiteIcon
 from pv_app.storage.codec import from_json, to_json
@@ -35,6 +36,15 @@ _MIGRATIONS = (
         archive_name   TEXT NOT NULL,
         invoice_number TEXT NOT NULL
     );
+    """,
+    """
+    CREATE TABLE debit_note (
+        number     TEXT PRIMARY KEY,
+        ppe_number TEXT NOT NULL,
+        issue_date TEXT NOT NULL,
+        payload    TEXT NOT NULL
+    );
+    CREATE INDEX debit_note_by_ppe ON debit_note (ppe_number, issue_date);
     """,
 )
 """Kolejne wersje schematu; ``PRAGMA user_version`` mówi, ile już wykonano."""
@@ -123,6 +133,27 @@ class SqliteRepository:
             (ppe_number,),
         ).fetchall()
         return [from_json(Invoice, r[0]) for r in rows]
+
+    def add_debit_note(self, note: DebitNote) -> None:
+        with self._connection:
+            self._connection.execute(
+                "INSERT INTO debit_note (number, ppe_number, issue_date, payload)"
+                " VALUES (?, ?, ?, ?)",
+                (note.number, note.ppe_number, note.issue_date.isoformat(), to_json(note)),
+            )
+
+    def has_debit_note(self, number: str) -> bool:
+        row = self._connection.execute(
+            "SELECT 1 FROM debit_note WHERE number = ?", (number,)
+        ).fetchone()
+        return row is not None
+
+    def list_debit_notes(self, ppe_number: str) -> list[DebitNote]:
+        rows = self._connection.execute(
+            "SELECT payload FROM debit_note WHERE ppe_number = ? ORDER BY issue_date, number",
+            (ppe_number,),
+        ).fetchall()
+        return [from_json(DebitNote, r[0]) for r in rows]
 
     def add_source_file(self, source_file: SourceFile) -> None:
         with self._connection:

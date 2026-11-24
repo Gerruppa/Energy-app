@@ -75,7 +75,7 @@ def test_reads_settlement_summary_with_balance_excise_and_last_year() -> None:
     assert summary.excise_amount == Decimal("1.00")
     assert summary.same_period_last_year_kwh == Decimal("170")
     assert summary.source == Source("T/K1/BN000001/0004/26", 3)
-    assert invoice.period_cost == Decimal("32.04")
+    assert invoice.result_after_discount == Decimal("32.04")
 
 
 def test_reads_meter_readings_with_reading_type() -> None:

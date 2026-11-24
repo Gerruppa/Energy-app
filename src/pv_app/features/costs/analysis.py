@@ -1,9 +1,11 @@
 """Koszty i Faktury: czyste analizy na ``Repository``."""
 
 from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal
 
 from pv_app.domain.invoice import DateRange, DocumentKind, SettlementBasis, Source
+from pv_app.domain.period_cost import PeriodCosts
 from pv_app.storage.repository import Repository
 
 
@@ -17,12 +19,41 @@ class InvoiceListRow:
     imported_kwh: Decimal
     exported_kwh: Decimal | None
     period_cost: Decimal
-    """Koszt okresu (brutto)."""
+    """Koszt okresu (brutto), po bonifikatach z Faktury i Not obciążeniowych."""
+    source: Source
+    corrects: str | None = None
+    """Numer Faktury, którą ta Faktura korygująca zastępuje."""
+    superseded_by: str | None = None
+    """Numer Faktury korygującej, która zastępuje tę Fakturę; jej Koszt okresu się nie liczy."""
+    debit_notes: tuple[str, ...] = ()
+    """Numery Not obciążeniowych, których bonifikaty pomniejszają Koszt okresu."""
+
+
+@dataclass(frozen=True)
+class DebitNoteListRow:
+    number: str
+    issue_date: date
+    sale_date: date
+    discount: Decimal
+    """Bonifikata po korekcie."""
+    amount_due: Decimal
+    invoice_number: str | None
+    """Faktura, której Koszt okresu pomniejsza; ``None``, gdy nie ma jej w danych."""
+    superseded_by: str | None
     source: Source
 
 
+def _period_costs(repository: Repository, ppe_number: str) -> PeriodCosts:
+    return PeriodCosts(
+        invoices=repository.list_invoices(ppe_number),
+        debit_notes=repository.list_debit_notes(ppe_number),
+    )
+
+
 def invoice_list(repository: Repository, ppe_number: str) -> list[InvoiceListRow]:
-    """Faktury PPE od najnowszego Okresu rozliczeniowego."""
+    """Faktury PPE od najnowszego Okresu rozliczeniowego, także zastąpione korektą."""
+    costs = _period_costs(repository, ppe_number)
+    superseded = costs.superseded_invoices
     return [
         InvoiceListRow(
             number=invoice.number,
@@ -31,8 +62,37 @@ def invoice_list(repository: Repository, ppe_number: str) -> list[InvoiceListRow
             basis=invoice.settlement_basis,
             imported_kwh=invoice.imported_kwh,
             exported_kwh=invoice.exported_kwh,
-            period_cost=invoice.period_cost,
+            period_cost=costs.period_cost(invoice),
             source=invoice.summary.source,
+            corrects=invoice.correction.corrected_invoice_number if invoice.correction else None,
+            superseded_by=superseded.get(invoice.number),
+            debit_notes=tuple(note.number for note in costs.debit_notes_for(invoice)),
         )
-        for invoice in reversed(repository.list_invoices(ppe_number))
+        for invoice in sorted(
+            costs.invoices,
+            key=lambda i: (i.header.billing_period.start, i.header.issue_date, i.number),
+            reverse=True,
+        )
     ]
+
+
+def debit_note_list(repository: Repository, ppe_number: str) -> list[DebitNoteListRow]:
+    """Noty obciążeniowe PPE od najnowszej, z Fakturą, której okres pomniejszają."""
+    costs = _period_costs(repository, ppe_number)
+    superseded = costs.superseded_debit_notes
+    rows = []
+    for note in reversed(costs.debit_notes):
+        invoice = costs.invoice_for(note)
+        rows.append(
+            DebitNoteListRow(
+                number=note.number,
+                issue_date=note.issue_date,
+                sale_date=note.sale_date,
+                discount=note.discount,
+                amount_due=note.amount_due,
+                invoice_number=invoice.number if invoice else None,
+                superseded_by=superseded.get(note.number),
+                source=note.source,
+            )
+        )
+    return rows

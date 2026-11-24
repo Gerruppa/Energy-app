@@ -5,6 +5,7 @@ from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
+from pv_app.domain.debit_note import DebitNote
 from pv_app.domain.invoice import (
     DateRange,
     DocumentKind,
@@ -13,7 +14,12 @@ from pv_app.domain.invoice import (
     SettlementBasis,
     Source,
 )
-from pv_app.features.costs.analysis import InvoiceListRow, invoice_list
+from pv_app.features.costs.analysis import (
+    DebitNoteListRow,
+    InvoiceListRow,
+    debit_note_list,
+    invoice_list,
+)
 from pv_app.ingest import import_document
 from pv_app.ingest.raw import RawDocument
 from pv_app.storage.in_memory import InMemoryRepository
@@ -70,3 +76,101 @@ def test_invoice_list_shows_period_kind_basis_and_period_cost_newest_first() -> 
 
 def test_invoice_list_is_empty_for_metering_point_without_invoices() -> None:
     assert invoice_list(InMemoryRepository(), "590000000000000001") == []
+
+
+APARTMENT = "590000000000000002"
+
+
+def fixture_debit_note() -> DebitNote:
+    note = import_document(RawDocument.from_json(FIXTURES / "debit_note_correction.json"))
+    assert note.debit_note is not None
+    return note.debit_note
+
+
+def corrected_invoice() -> Invoice:
+    """Faktura, którą koryguje fixture ``old_layout_correcting_standard``."""
+    original = fixture_invoice("old_layout_standard_half_year")
+    return replace(
+        original,
+        header=replace(
+            original.header,
+            number="E/TM3/0000005/24",
+            billing_period=DateRange(date(2023, 12, 4), date(2024, 3, 24)),
+        ),
+    )
+
+
+def test_correcting_invoice_replaces_corrected_one_which_stays_in_list() -> None:
+    repository = InMemoryRepository()
+    repository.add_invoice(corrected_invoice())
+    repository.add_invoice(fixture_invoice("old_layout_correcting_standard"))
+
+    rows = invoice_list(repository, APARTMENT)
+
+    assert [(r.number, r.kind, r.superseded_by, r.period_cost) for r in rows] == [
+        ("E/TM3/BN000002/0001/26", DocumentKind.CORRECTING_INVOICE, None, Decimal("44.28")),
+        (
+            "E/TM3/0000005/24",
+            DocumentKind.SETTLEMENT_INVOICE,
+            "E/TM3/BN000002/0001/26",
+            Decimal("629.37"),
+        ),
+    ]
+    assert rows[0].corrects == "E/TM3/0000005/24"
+
+
+def test_debit_note_discount_lowers_period_cost_of_period_it_concerns() -> None:
+    repository = InMemoryRepository()
+    repository.add_invoice(fixture_invoice("old_layout_correcting_standard"))
+    repository.add_invoice(fixture_invoice("new_layout_standard_half_year"))
+    repository.add_debit_note(fixture_debit_note())
+
+    rows = invoice_list(repository, APARTMENT)
+
+    # Data sprzedaży Noty (1.02.2026) leży w Okresie rozliczeniowym 20.09.2025 – 9.03.2026.
+    assert [(r.number, r.period_cost, r.debit_notes) for r in rows] == [
+        ("E/TM3/BN000002/0002/26", Decimal("432.87") - Decimal("47.70"), ("TM3NBN000002/001",)),
+        ("E/TM3/BN000002/0001/26", Decimal("44.28"), ()),
+    ]
+
+
+def test_corrected_debit_note_no_longer_counts() -> None:
+    correction = fixture_debit_note()
+    original = replace(
+        correction,
+        number="T3N0000007",
+        corrected_note_number=None,
+        issue_date=date(2026, 1, 10),
+    )
+    repository = InMemoryRepository()
+    repository.add_invoice(fixture_invoice("new_layout_standard_half_year"))
+    repository.add_debit_note(original)
+    repository.add_debit_note(correction)
+
+    (row,) = invoice_list(repository, APARTMENT)
+
+    assert row.debit_notes == ("TM3NBN000002/001",)
+    assert row.period_cost == Decimal("432.87") - Decimal("47.70")
+    notes = debit_note_list(repository, APARTMENT)
+    assert [(n.number, n.superseded_by, n.invoice_number) for n in notes] == [
+        ("TM3NBN000002/001", None, "E/TM3/BN000002/0002/26"),
+        ("T3N0000007", "TM3NBN000002/001", None),
+    ]
+
+
+def test_debit_note_without_invoice_for_its_period_is_listed_unassigned() -> None:
+    repository = InMemoryRepository()
+    repository.add_debit_note(fixture_debit_note())
+
+    assert debit_note_list(repository, APARTMENT) == [
+        DebitNoteListRow(
+            number="TM3NBN000002/001",
+            issue_date=date(2026, 2, 7),
+            sale_date=date(2026, 2, 1),
+            discount=Decimal("47.70"),
+            amount_due=Decimal("12.30"),
+            invoice_number=None,
+            superseded_by=None,
+            source=Source("TM3NBN000002/001", 1),
+        )
+    ]

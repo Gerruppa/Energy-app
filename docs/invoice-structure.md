@@ -8,7 +8,7 @@ Wyniki przeglądu 13 unikalnych dokumentów z `References/` (listopad 2026). Źr
 |---|---|---|
 | Faktura rozliczeniowa, stary układ | `FAKTURA VAT ROZLICZENIOWA NR …` lub `FAKTURA VAT NR …` | do faktur wystawionych w 2025; tekst w kolumnach, wiersze z VAT 5% i 23% przeplatają się |
 | Faktura rozliczeniowa, nowy układ | strona `To jest Twoja faktura` + strona `podsumowanie Twojej faktury` | od grudnia 2025; czyste tabele, jeden wiersz = jedna pozycja |
-| Faktura korygująca | `FAKTURA VAT KOREKTA NR … DO FAKTURY VAT NR …` | stary układ także w 2026; sekcje `POLICZONO` i `NALEŻAŁO POLICZYĆ`, przyczyna korekty, kwota do zwrotu |
+| Faktura korygująca | `FAKTURA VAT KOREKTA NR …` / `DO FAKTURY VAT NR …` | stary układ także w 2026; sekcje `POLICZONO` i `NALEŻAŁO POLICZYĆ`, przyczyna korekty, Bonifikata, kwota do zwrotu |
 | Nota obciążeniowa korekta | `NOTA OBCIĄŻENIOWA KOREKTA NR …` | jedna strona, bonifikaty (np. obniżka z rozporządzenia MKiŚ); nie zawiera kWh |
 
 Prefiks numeru wskazuje PPE: Dom ma inną serię niż Mieszkanie. Numer faktury jest unikalny i stabilny — klucz importu.
@@ -39,7 +39,7 @@ Prefiks numeru wskazuje PPE: Dom ma inną serię niż Mieszkanie. Numer faktury 
 Parser: `src/pv_app/ingest/old_layout.py`. Sprawdzony lokalnie na wszystkich Fakturach rozliczeniowych w starym układzie z `References/` (roczna z net-meteringiem, półroczna, półroczna z wymianą licznika); fixture'y z wymyślonymi liczbami w `tests/fixtures/old_layout_*.json`, wiersze tabel jako listy komórek.
 
 - **Komórki zamiast tekstu:** w tekście odstęp tysięcy (`1 722`) wygląda jak granica kolumn, a kolumna współczynnika opłaty OZE i kogeneracyjnej (`1`) jak cyfra tysięcy (`1 722 1 0,00000`). Adapter dzieli wiersz na komórki tam, gdzie odstęp między znakami przekracza 5 pt (spacja i odstęp tysięcy mają 1–3 pt, kolumny tabel 10 pt i więcej); parser czyta tabele z komórek. Bywa, że dwie sąsiednie kolumny dają jedną komórkę (`839,95 13/10/2025` w harmonogramie); parser rozdziela tylko komórkę z datą, komórkę z samymi liczbami bierze w całości.
-- **Rozpoznanie:** nagłówek `FAKTURA VAT ROZLICZENIOWA NR <numer> - …` albo `FAKTURA VAT NR <numer> - …`; Faktury korygujące (`FAKTURA VAT KOREKTA NR`) i Noty obciążeniowe nie pasują i są odrzucane jako nieobsługiwane (#6).
+- **Rozpoznanie:** nagłówek `FAKTURA VAT ROZLICZENIOWA NR <numer> - …` albo `FAKTURA VAT NR <numer> - …`; Faktury korygujące (`FAKTURA VAT KOREKTA NR`) mają osobne rozpoznanie (sekcja niżej).
 - **Dwa warianty:**
   - do III 2025: strona Faktury pierwsza, `Za okres od … do …`, załącznik w jednej kolumnie (`Nr punktu poboru:` bywa z dopiskiem `PPE`), nazwy składników zawinięte w dwa wiersze wokół wiersza liczb (`Składnik stały stawki` / `mc 1 …` / `sieciowej`);
   - od IX 2025: z przodu strony podsumowania (`Dzień dobry,` / `to jest podsumowanie Twojej faktury`, `Co 6 miesięcy`), Faktura na stronie 3 (`za okres od …`), załącznik w dwóch kolumnach (`Nr punktu poboru: | … | Nazwa obiektu: | …`), nazwy składników w jednej komórce. Częstotliwość (`Co 6 miesięcy`) stoi tylko na stronie podsumowania; nagłówek Faktury nie ma dla niej osobnego źródła, więc parser jej nie zapisuje.
@@ -47,6 +47,28 @@ Parser: `src/pv_app/ingest/old_layout.py`. Sprawdzony lokalnie na wszystkich Fak
 - **Pozycje faktury:** nazwa składnika w komórce przed jednostką albo w wierszu nad wierszami stref (nagłówek grupy bywa w dwóch wierszach: `Składnik zmienny stawki` / `sieciowej`); wiersz liczb bez nazwy bierze nazwę z wierszy przed nim i jednego wiersza po nim. Po jednostce: ilość, [współczynnik], cena, netto, stawka VAT, VAT, brutto. Tabela dystrybucji przechodzi na kolejną stronę z powtórzonym nagłówkiem kolumn; kończy ją `Ogółem wartość`. Jak w nowym układzie podokres to kolejny wiersz tego samego składnika, bez dat. Wiersze z VAT 5% i 23% są osobnymi podokresami; w podsumowaniu stawka bywa wtedy `x` (w danych z `References/` wszystkie Faktury mają już 23%, wariant 5% jest tylko w fixture'ze).
 - **Podsumowanie:** wiersze `N. | etykieta | netto | stawka | VAT | brutto [| kWh]` na stronie z numerem Faktury; `Do zapłaty ( 3 + 4 [- 5] )` ze znakiem (ujemna = zwrot); `Wpłaty dodatkowe` jedną kwotą. Saldo nie jest podawane. Akcyza: `Od [Ilości] X kWh … akcyzę w kwocie Y zł` na stronie Faktury (zdanie pod harmonogramem dotyczy Prognoz).
 - **Harmonogram Prognoz:** jeden wiersz na Prognozę (numer blankietu, okres, kWh, kwoty). Kolejność kolumn kwot różni się: Faktura roczna z net-meteringiem ma netto, brutto, `x`, VAT, rabat, nadpłata/niedopłata, termin, do zapłaty; pozostałe netto, `x`, VAT, brutto, rabat, nadpłata/niedopłata, do zapłaty, termin. Parser ustawia kolumny po położeniu `x` i daty, a potwierdza je sumami netto + VAT = brutto i brutto + nadpłata/niedopłata = do zapłaty.
+
+## Faktura korygująca (parser z #6)
+
+Parser: `parse_correcting_invoice` w `src/pv_app/ingest/old_layout.py`, układ starej Faktury także w 2026. Sprawdzony lokalnie na obu Fakturach korygujących z `References/` (korekty premii prądowej za 2023 i 2024); fixture'y `tests/fixtures/old_layout_correcting_*.json`.
+
+- **Rozpoznanie:** `FAKTURA VAT KOREKTA NR <numer> - …`, pod nim `DO FAKTURY VAT NR <numer> z dnia <data>` i `Przyczyna korekty: …` (zdanie w kilku wierszach, do `POLICZONO:`).
+- **Dwie części:** wiersz `POLICZONO:` albo `NALEŻAŁO POLICZYĆ:` przełącza część; dotyczy to podsumowania na stronie 1, załącznika (nagłówek PPE, odczyty, Rozliczenie OZE, Pozycje faktury), zestawienia na PPE i tabeli bonifikat. Wiersze przed pierwszą częścią (tytuł, okres, przyczyna) należą do obu. Do Faktury trafia część „należało policzyć”; z „policzono” zostaje Wynik rozliczenia i Do zapłaty w `Correction`. Nagłówek PPE w części „należało policzyć” bywa sklejony w jednej komórce (`Adres punktu poboru: …`), więc dane PPE parser czyta z pierwszego wystąpienia (w części „policzono”; są takie same).
+- **Bonifikata:** wiersz podsumowania `N. | Bonifikata | netto | stawka | VAT | brutto` (ujemne kwoty), a `Do zapłaty ( 3 + 4 )` ją uwzględnia. Kontrola sum: Do zapłaty = Wynik + Prognoza + Bonifikata − wpłaty.
+- **Kwota korekty i data wystawienia:** `Do zwrotu | X zł` (albo `Do zapłaty`) i `Data wystawienia:` na stronie 2, pod podsumowaniem. Kwota korekty = Do zapłaty „należało policzyć” − Do zapłaty „policzono”; kontrola sum to sprawdza.
+- **Podsumowanie z dwiema stawkami VAT:** Faktura za 2023 ma osobne wiersze sprzedaży, dystrybucji i Wyniku dla VAT 5% i 23% (`Wynik rozliczenia ( 1 + 2 )`, `Wynik rozliczenia ( 4 + 5 )`); wiersze tej samej etykiety się sumują. Akcyza „należało policzyć” bywa na stronie 2; parser czyta akcyzę tylko ze strony podsumowania, więc wtedy jej nie zapisuje.
+- **Rozliczenie OZE za 2023:** strefa w jednej komórce z nazwą wiersza (`1. | Energia elektryczna całodobowa | 5 liczb`) zamiast osobnego wiersza strefy, a zdanie o Udziale Sprzedawcy brzmi `z rozliczenia do dyspozycji Sprzedawcy pozostaje X kWh`.
+- **Nagłówki tabel:** wiersz `ilość | Wartość netto …` (mała litera) i `Jedn. | Cena jedn. …` to nagłówki kolumn, nie nazwy składników.
+
+## Nota obciążeniowa korekta (parser z #6)
+
+Parser: `src/pv_app/ingest/debit_note.py`; sprawdzony lokalnie na obu Notach z `References/`, fixture `tests/fixtures/debit_note_correction.json`.
+
+- **Rozpoznanie:** `NOTA OBCIĄŻENIOWA KOREKTA NR <numer> do noty nr <numer> - wystawiona w` (reszta zdania w kolejnym wierszu). Jedna strona.
+- **Pola:** `Data sprzedaży:`, tabele `POLICZONO:` i `NALEŻAŁO POLICZYĆ:` z wierszami `Lp. | Nazwa usługi | Nr PPE | Wartość [zł]` i `Razem:`, `Do zapłaty: | X zł`, `Termin płatności:`, `Data wystawienia:`. Brak kWh i Okresu rozliczeniowego.
+- **Bonifikata:** pozycja `Obniżka kwoty należności (Rozp. MKiŚ z 09.09.2023)` to bonifikata (dodatnia kwota = obniżka). Do obliczeń liczy się „należało policzyć”; Do zapłaty = „policzono” − „należało policzyć”. Inna nazwa pozycji daje ostrzeżenie i nie pomniejsza Kosztu okresu.
+- **Okres:** Nota nie mówi, którego okresu dotyczy. Aplikacja przypisuje ją do Faktury, w której Okresie rozliczeniowym leży data sprzedaży (otwarte pytanie w `docs/roadmap.md`).
+- **Związek z Fakturami korygującymi:** w danych Nota korekta zmniejsza premię prądową z pierwotnej Noty, a Faktura korygująca przenosi tę samą kwotę jako Bonifikatę do konkretnego Okresu rozliczeniowego.
 
 ## Nowy układ: warianty i pułapki (parser z #3)
 

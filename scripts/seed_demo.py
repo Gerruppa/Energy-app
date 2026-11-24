@@ -6,7 +6,7 @@
 Potem (PowerShell): ``$env:PV_APP_DATA_DIR = "KATALOG"; uv run python -m pv_app``.
 Pliki przechodzą przez ``import_files`` jak na stronie importu (duplikaty pomijane, kopie
 w ``KATALOG/archive``), a każdy nowy PPE powstaje przez ``add_new_metering_point`` jak
-w kreatorze. Faktury, które nie przeszły importu, są wypisane z przyczyną.
+w kreatorze. Pliki, które nie przeszły importu, są wypisane z przyczyną.
 """
 
 import argparse
@@ -75,7 +75,10 @@ def main() -> None:
             _report(continuation)
         for point in repository.list_metering_points():
             invoices = len(repository.list_invoices(point.ppe_number))
-            print(f"{point.name} (?ppe={point.slug}): {invoices} Faktur")
+            notes = len(repository.list_debit_notes(point.ppe_number))
+            print(
+                f"{point.name} (?ppe={point.slug}): {invoices} Faktur, {notes} Not obciążeniowych"
+            )
     finally:
         repository.close()
 

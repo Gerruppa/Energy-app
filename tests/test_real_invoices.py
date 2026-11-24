@@ -10,11 +10,10 @@ from pathlib import Path
 
 import pytest
 
-from pv_app.domain.invoice import Layout
+from pv_app.domain.invoice import DocumentKind, Layout
 from pv_app.ingest import ImportResult, import_file
 
 REFERENCES = Path(__file__).resolve().parent.parent / "References"
-UNSUPPORTED = "Nieobsługiwany rodzaj dokumentu"
 
 pytestmark = pytest.mark.real_pdfs
 
@@ -44,23 +43,29 @@ def _import(path: Path) -> ImportResult:
 @no_references
 # Identyfikatory to numery kolejne: nazwy plików zawierają numery Faktur.
 @pytest.mark.parametrize("path", PDFS, ids=[f"pdf{i}" for i in range(len(PDFS))])
-def test_invoice_is_imported_with_agreeing_totals_or_rejected_as_unsupported(path: Path) -> None:
-    """Faktury rozliczeniowe (stary i nowy układ) wchodzą; korekty i noty są nieobsługiwane."""
+def test_document_is_imported_with_agreeing_totals(path: Path) -> None:
+    """Faktury (rozliczeniowe w obu układach i korygujące) oraz Noty obciążeniowe wchodzą."""
     result = _import(path)
 
-    if result.invoice is None:
-        assert result.rejection is not None
-        assert result.rejection.startswith(UNSUPPORTED), "Faktura rozliczeniowa odrzucona"
-        return
-    assert result.rejection is None
+    assert result.rejection is None, "dokument odrzucony"
     assert result.warnings == ()
+    if result.debit_note is not None:
+        note = result.debit_note
+        assert note.number.replace("/", "_") in path.stem
+        assert note.items
+        assert note.sale_date <= note.issue_date
+        return
     invoice = result.invoice
+    assert invoice is not None
     assert invoice.number.replace("/", "_") in path.stem
     assert invoice.lines
     assert invoice.readings
     period = invoice.header.billing_period
     assert period.start < period.end <= invoice.header.issue_date
-    if invoice.header.billing_frequency_months != 1:
+    if invoice.correction is not None:
+        assert invoice.correction.corrected_invoice_number != invoice.number
+        assert invoice.correction.reason
+    elif invoice.header.billing_frequency_months != 1:
         assert invoice.forecasts, "Faktura nie miesięczna bez harmonogramu Prognoz"
 
 
@@ -70,3 +75,13 @@ def test_invoices_of_both_layouts_are_imported() -> None:
     layouts = {result.invoice.layout for result in map(_import, PDFS) if result.invoice is not None}
 
     assert layouts == {Layout.OLD, Layout.NEW}
+
+
+@no_references
+def test_correcting_invoices_and_debit_notes_are_imported() -> None:
+    """Pilnuje, żeby Faktury korygujące i Noty obciążeniowe nie zniknęły z importu."""
+    results = list(map(_import, PDFS))
+    kinds = {r.invoice.kind for r in results if r.invoice is not None}
+
+    assert DocumentKind.CORRECTING_INVOICE in kinds
+    assert any(r.debit_note is not None for r in results)

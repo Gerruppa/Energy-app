@@ -1,5 +1,8 @@
 """Głęboki moduł: komórki wierszy Faktury w starym układzie (do 2025) → ``Invoice``.
 
+Ten sam układ mają Faktury korygujące (także w 2026): części „policzono” i „należało
+policzyć” powtarzają podsumowanie i załącznik, a do obliczeń liczy się ta druga.
+
 Tabele czytamy z komórek, które adapter wydziela po położeniu znaków na stronie: w samym
 tekście odstęp tysięcy (``1 722``) wygląda jak granica kolumn (``1`` i ``722``). Opis układu
 i jego wariantów: ``docs/invoice-structure.md``.
@@ -12,6 +15,7 @@ from decimal import Decimal
 
 from pv_app.domain.invoice import (
     Amount,
+    Correction,
     DateRange,
     DocumentKind,
     EnergySettlement,
@@ -34,6 +38,10 @@ from pv_app.ingest.polish_format import DATE, NUMBER, parse_date, parse_number
 from pv_app.ingest.raw import RawDocument, Row
 
 _TITLE = re.compile(r"^FAKTURA VAT (?:ROZLICZENIOWA )?NR (\S+) - ")
+_CORRECTING_TITLE = re.compile(r"^FAKTURA VAT KOREKTA NR (\S+) - ")
+_ATTACHMENT = r"^ZAŁĄCZNIK DO FAKTURY VAT (?:KOREKTA )?NR "
+_CHARGED = "POLICZONO:"
+_SHOULD_HAVE_CHARGED = "NALEŻAŁO POLICZYĆ:"
 _NUMBER_CELL = re.compile(rf"^{NUMBER}$")
 _ZONE = re.compile(r"^[a-ząćęłńóśźż]+$")
 
@@ -43,6 +51,10 @@ MONEY_TOLERANCE = Decimal("0.01")
 
 def is_old_layout(document: RawDocument) -> bool:
     return any(_TITLE.match(line) for page in document.pages for line in page.lines)
+
+
+def is_correcting_invoice(document: RawDocument) -> bool:
+    return any(_CORRECTING_TITLE.match(line) for page in document.pages for line in page.lines)
 
 
 @dataclass(frozen=True)
@@ -94,13 +106,54 @@ class _PageRows:
 
 def parse_old_layout(document: RawDocument) -> tuple[Invoice, list[str]]:
     """Faktura i ostrzeżenia o rzeczach nierozpoznanych; ``ParseError``, gdy brakuje sekcji."""
+    rows = _cells(document)
+    header = _header(rows, _TITLE)
+    return _invoice(DocumentKind.SETTLEMENT_INVOICE, header, rows, None)
+
+
+def parse_correcting_invoice(document: RawDocument) -> tuple[Invoice, list[str]]:
+    """Faktura korygująca: nagłówek z całego dokumentu, wartości z części „należało policzyć”.
+
+    Data wystawienia stoi pod kwotą do zwrotu (zapłaty) korekty, zwykle na drugiej stronie.
+    """
+    rows = _cells(document)
+    charged, should_have_charged = _parts(rows)
+    settled, settled_row = rows.require(
+        rf"^Do (zwrotu|zapłaty):? ({NUMBER}) zł$", "kwota do zwrotu lub zapłaty korekty"
+    )
+    header = _header(rows, _CORRECTING_TITLE, issue_date_page=settled_row.page)
+    title_page = rows.on_page(header.source.page)
+    corrected, _ = title_page.require(
+        rf"^DO FAKTURY VAT NR (\S+) z dnia ({DATE})$", "numer korygowanej Faktury"
+    )
+    difference = parse_number(settled.group(2))
+    charged_page = charged.on_page(header.source.page)
+    correction = Correction(
+        corrected_invoice_number=corrected.group(1),
+        corrected_invoice_issue_date=parse_date(corrected.group(2)),
+        reason=_reason(title_page),
+        charged_result=_summed_amount(charged_page, r"Wynik rozliczenia \(.*\)", "Wynik"),
+        charged_amount_due=_amount_due(charged_page),
+        difference=-difference if settled.group(1) == "zwrotu" else difference,
+        source=header.source,
+        difference_source=Source(header.number, settled_row.page),
+    )
+    return _invoice(DocumentKind.CORRECTING_INVOICE, header, should_have_charged, correction)
+
+
+def _cells(document: RawDocument) -> _PageRows:
     if not any(page.rows for page in document.pages):
         raise ParseError("Brak komórek tabel: Fakturę w starym układzie trzeba wgrać jako PDF.")
-    rows = _PageRows.of(document)
-    header = _header(rows)
+    return _PageRows.of(document)
+
+
+def _invoice(
+    kind: DocumentKind, header: InvoiceHeader, rows: _PageRows, correction: Correction | None
+) -> tuple[Invoice, list[str]]:
+    """Faktura z wierszy wartości (dla Faktury korygującej: część „należało policzyć”)."""
     warnings: list[str] = []
     invoice = Invoice(
-        kind=DocumentKind.SETTLEMENT_INVOICE,
+        kind=kind,
         layout=Layout.OLD,
         header=header,
         readings=_readings(rows, header.number),
@@ -108,19 +161,61 @@ def parse_old_layout(document: RawDocument) -> tuple[Invoice, list[str]]:
         lines=_invoice_lines(rows, header.number, warnings),
         summary=_summary(rows, header.source),
         forecasts=_forecasts(rows, header.number),
+        correction=correction,
     )
     return invoice, warnings
 
 
-def _header(rows: _PageRows) -> InvoiceHeader:
-    title, title_row = rows.require(_TITLE.pattern, "numer Faktury")
+def _parts(rows: _PageRows) -> tuple[_PageRows, _PageRows]:
+    """Wiersze części „policzono” i „należało policzyć”; wiersze przed pierwszą z nich
+    (tytuł, okres, przyczyna) należą do obu."""
+    charged: list[_PageRow] = []
+    should_have_charged: list[_PageRow] = []
+    current: list[_PageRow] | None = None
+    for row in rows:
+        if row.text == _CHARGED:
+            current = charged
+        elif row.text == _SHOULD_HAVE_CHARGED:
+            current = should_have_charged
+        elif current is None:
+            charged.append(row)
+            should_have_charged.append(row)
+        else:
+            current.append(row)
+    if current is None:
+        raise ParseError("Nie znaleziono na Fakturze korygującej części „należało policzyć”.")
+    return _PageRows(charged), _PageRows(should_have_charged)
+
+
+def _reason(title_page: _PageRows) -> str:
+    """Przyczyna korekty: zdanie od ``Przyczyna korekty:`` do części „policzono”."""
+    parts: list[str] = []
+    for row in title_page:
+        if parts and row.text == _CHARGED:
+            break
+        if parts:
+            parts.append(row.text)
+        elif match := re.match(r"^Przyczyna korekty: (.+)$", row.text):
+            parts.append(match.group(1))
+    if not parts:
+        raise ParseError("Nie znaleziono na Fakturze: przyczyna korekty.")
+    return " ".join(parts)
+
+
+def _header(
+    rows: _PageRows, title_pattern: re.Pattern[str], issue_date_page: int | None = None
+) -> InvoiceHeader:
+    title, title_row = rows.require(title_pattern.pattern, "numer Faktury")
     number = title.group(1)
     invoice_page = rows.on_page(title_row.page)
     period, _ = invoice_page.require(
         rf"^[Zz]a okres od ({DATE}) do ({DATE})$", "Okres rozliczeniowy"
     )
-    issued, _ = invoice_page.require(rf"^Data wystawienia:? ({DATE})$", "data wystawienia")
-    _, attachment_row = rows.require(r"^ZAŁĄCZNIK DO FAKTURY VAT NR ", "załącznik do Faktury")
+    issued_on = issue_date_page or title_row.page
+    issued, _ = rows.on_page(issued_on).require(
+        rf"^Data wystawienia:? ({DATE})$", "data wystawienia"
+    )
+    _, attachment_row = rows.require(_ATTACHMENT, "załącznik do Faktury")
     attachment = rows.on_page(attachment_row.page)
     ppe = [c for c in attachment.labelled(r"Nr punktu poboru:", "numer PPE") if c != "PPE"]
     power = re.match(r"(\d+(?:[.,]\d+)?) kW$", attachment.labelled(r"Moc umowna:", "moc umowna")[0])
@@ -147,6 +242,7 @@ def _header(rows: _PageRows) -> InvoiceHeader:
         billing_frequency_months=None,
         source=Source(number, title_row.page),
         site_source=Source(number, attachment_row.page),
+        issue_date_source=(Source(number, issued_on) if issued_on != title_row.page else None),
     )
 
 
@@ -209,13 +305,7 @@ def _energy_settlement(rows: _PageRows, invoice_number: str) -> EnergySettlement
         return None
     page = found[1].page
     table = rows.on_page(page)
-    zones = [
-        row.cells[1:]
-        for row in table
-        if len(row.cells) == 6
-        and _ZONE.match(row.cells[0])
-        and all(_NUMBER_CELL.match(cell) for cell in row.cells[1:])
-    ]
+    zones = [values for row in table if (values := _zone_values(row.cells)) is not None]
     if not zones:
         raise ParseError(f"Nie udało się odczytać tabeli Rozliczenie OZE (strona {page}).")
 
@@ -226,7 +316,10 @@ def _energy_settlement(rows: _PageRows, invoice_number: str) -> EnergySettlement
         rf"z bieżącego rozliczenia pozostało ({NUMBER}) kWh",
         "energia pozostała z bieżącego rozliczenia",
     )
-    seller, _ = table.require(rf"Sprzedawca ma do dyspozycji ({NUMBER}) kWh", "Udział Sprzedawcy")
+    seller, _ = table.require(
+        rf"(?:Sprzedawca ma do dyspozycji|do dyspozycji Sprzedawcy pozostaje) ({NUMBER}) kWh",
+        "Udział Sprzedawcy",
+    )
     end, _ = table.require(
         rf"pozostaje łączna ilość energii elektrycznej ({NUMBER}) kWh",
         "Magazyn energii na koniec okresu",
@@ -245,6 +338,22 @@ def _energy_settlement(rows: _PageRows, invoice_number: str) -> EnergySettlement
     )
 
 
+def _zone_values(cells: Row) -> Row | None:
+    """Liczby wiersza strefy w tabeli Rozliczenie OZE: ``całodobowa | 5 liczb`` albo
+    (Faktury za 2023) ``1. | Energia elektryczna całodobowa | 5 liczb``."""
+    if len(cells) == 6 and _ZONE.match(cells[0]):
+        values = cells[1:]
+    elif (
+        len(cells) == 7
+        and re.fullmatch(r"\d+\.", cells[0])
+        and re.fullmatch(r"Energia elektryczna [a-ząćęłńóśźż]+", cells[1])
+    ):
+        values = cells[2:]
+    else:
+        return None
+    return values if all(_NUMBER_CELL.match(cell) for cell in values) else None
+
+
 _SECTION_STARTS = (
     (
         re.compile(r"^Rozliczenie [Ss]przedaży [Ee]nergii [Ee]lektrycznej za okres"),
@@ -254,7 +363,7 @@ _SECTION_STARTS = (
 )
 _SECTION_END = re.compile(r"^Ogółem wartość ?:")
 _TABLE_HEADER = re.compile(
-    r"^(?:Stawka|(?:Opis|Jednostka|Ilość|Strefa|miary)\b.*|(?:VAT )?\( ?% ?\)"
+    r"^(?:Stawka|(?:Opis|Jednostka|[Ii]lość|Strefa|miary)\b.*|Jedn\. .*|(?:VAT )?\( ?% ?\)"
     r"|Strona \d+ z \d+|\d+ ?/ ?\d+(?: str\.)?)$"
 )
 _UNITS = {"kWh": "kWh", "mc": "mc", "zł/mc": "mc"}
@@ -374,31 +483,50 @@ def _invoice_lines(
     return tuple(result)
 
 
+def _summary_values(page: _PageRows, label: str) -> list[Row]:
+    """Liczby wierszy podsumowania ``N. | etykieta | liczby`` o tej etykiecie."""
+    return [
+        row.cells[2:]
+        for row in page
+        if len(row.cells) > 2
+        and re.fullmatch(r"\d\.", row.cells[0])
+        and re.fullmatch(label, row.cells[1])
+    ]
+
+
+def _summed_amount(page: _PageRows, label: str, what: str) -> Amount:
+    """Kwota z wierszy podsumowania; przy dwóch stawkach VAT (5% i 23%) każda ma swój
+    wiersz z tą samą etykietą, więc wiersze się sumują."""
+    found = _summary_values(page, label)
+    if not found or any(len(values) < 4 for values in found):
+        raise ParseError(f"Nie znaleziono na Fakturze: {what}.")
+
+    # netto, stawka VAT (liczba albo x), VAT, brutto [, kWh]
+    def total(column: int) -> Decimal:
+        return sum((parse_number(values[column]) for values in found), Decimal(0))
+
+    return Amount(net=total(0), vat=total(2), gross=total(3))
+
+
+def _amount_due(page: _PageRows) -> Decimal:
+    """``Do zapłaty ( 3 + 4 )`` ze znakiem; w części „policzono” Faktury korygującej
+    etykieta bywa bez wzoru."""
+    due = _summary_values(page, r"Do zapłaty(?: \(.*\))?")
+    if len(due) != 1:
+        raise ParseError("Nie znaleziono na Fakturze: kwota do zapłaty.")
+    return parse_number(due[0][-1])
+
+
 def _summary(rows: _PageRows, source: Source) -> SettlementSummary:
     """Podsumowanie ze strony z numerem Faktury: wiersze ``N. | etykieta | liczby``."""
     page = rows.on_page(source.page)
 
-    def values(label: str) -> tuple[str, ...] | None:
-        for row in page:
-            if len(row.cells) > 2 and re.fullmatch(r"\d\.", row.cells[0]):
-                if re.fullmatch(label, row.cells[1]):
-                    return row.cells[2:]
-        return None
-
     def amount(label: str, what: str) -> Amount:
-        found = values(label)
-        if found is None or len(found) < 4:
-            raise ParseError(f"Nie znaleziono na Fakturze: {what}.")
-        # netto, stawka VAT (liczba albo x), VAT, brutto [, kWh]
-        return Amount(
-            net=parse_number(found[0]), vat=parse_number(found[2]), gross=parse_number(found[3])
-        )
+        return _summed_amount(page, label, what)
 
-    forecast = values(r"Wartość prognozy z poprzedniej faktury")
-    payments = values(r"Wpłaty dodatkowe")
-    due = values(r"Do zapłaty \(.*\)")
-    if due is None:
-        raise ParseError("Nie znaleziono na Fakturze: kwota do zapłaty.")
+    forecast = _summary_values(page, r"Wartość prognozy z poprzedniej faktury")
+    payments = _summary_values(page, r"Wpłaty dodatkowe")
+    discount = _summary_values(page, r"Bonifikata")
     excise = page.find(
         rf"^Od (?:[Ii]lości )?({NUMBER}) kWh (?:energii elektrycznej naliczono|Sprzedawca "
         rf"odprowadził) akcyzę w kwocie ({NUMBER}) zł"
@@ -411,8 +539,8 @@ def _summary(rows: _PageRows, source: Source) -> SettlementSummary:
         previous_forecast=(
             amount(r"Wartość prognozy z poprzedniej faktury", "Prognoza") if forecast else None
         ),
-        additional_payments=parse_number(payments[0]) if payments else None,
-        amount_due=parse_number(due[-1]),
+        additional_payments=parse_number(payments[0][0]) if payments else None,
+        amount_due=_amount_due(page),
         account_balance=None,
         excise_kwh=parse_number(excise[0].group(1)) if excise else None,
         excise_amount=parse_number(excise[0].group(2)) if excise else None,
@@ -421,6 +549,7 @@ def _summary(rows: _PageRows, source: Source) -> SettlementSummary:
             Source(source.invoice_number, last_year[1].page) if last_year else None
         ),
         source=source,
+        discount=amount(r"Bonifikata", "Bonifikata") if discount else None,
     )
 
 

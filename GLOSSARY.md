@@ -17,8 +17,15 @@ Faktura zmieniająca kwoty lub ilości z wcześniejszej Faktury; jej część �
 _Avoid_: korekta (bez słowa faktura)
 
 **Nota obciążeniowa**:
-Dokument Tauron bez kWh, doliczający lub zwracający kwotę dla PPE (np. bonifikata z rozporządzenia).
+Dokument Tauron bez kWh, doliczający lub zwracający kwotę dla PPE (np. bonifikata z rozporządzenia). Dotyczy Okresu rozliczeniowego, w którym leży jej data sprzedaży; w Saldzie liczy się od daty wystawienia. Nota korygująca zastępuje korygowaną Notę.
 _Avoid_: faktura (to nie jest Faktura)
+
+**Bonifikata**:
+Obniżka należności przyznana przez Tauron (np. premia prądowa z rozporządzenia MKiŚ), na Nocie obciążeniowej albo w części „należało policzyć” Faktury korygującej. Pomniejsza Koszt okresu, którego dotyczy.
+_Avoid_: rabat, zniżka, premia (bez doprecyzowania)
+
+**Faktura zastąpiona**:
+Faktura, którą koryguje Faktura korygująca z danych. Zostaje w bazie i na liście Faktur, ale do obliczeń liczy się korekta.
 
 **Prognoza**:
 Zaliczkowa płatność za przyszły okres, wyliczona przez Tauron z przewidywanego zużycia i rozliczana w następnej Fakturze.
@@ -106,7 +113,7 @@ _Avoid_: rabat, zniżka
 ## Koszty
 
 **Koszt okresu**:
-Wynik rozliczenia brutto Faktury (sprzedaż + dystrybucja) pomniejszony o bonifikaty z Not obciążeniowych dotyczących tego Okresu rozliczeniowego. Kwoty w dashboardzie są brutto.
+Wynik rozliczenia brutto Faktury (sprzedaż + dystrybucja) pomniejszony o Bonifikaty: z samej Faktury (Faktura korygująca) i z Not obciążeniowych dotyczących tego Okresu rozliczeniowego. Faktura zastąpiona nie ma własnego Kosztu okresu w obliczeniach. Kwoty w dashboardzie są brutto.
 _Avoid_: do zapłaty, rachunek (to kwestie Salda, nie kosztu)
 
 **Cena średnia kWh**:

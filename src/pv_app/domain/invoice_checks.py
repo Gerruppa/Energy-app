@@ -37,12 +37,22 @@ def check_totals(invoice: Invoice) -> list[str]:
 
     forecast = summary.previous_forecast.gross if summary.previous_forecast else Decimal(0)
     payments = summary.additional_payments or Decimal(0)
-    expected_due = summary.result.gross + forecast - payments
+    discount = summary.discount.gross if summary.discount else Decimal(0)
+    expected_due = summary.result.gross + forecast + discount - payments
     if abs(expected_due - summary.amount_due) > MONEY_TOLERANCE:
         problems.append(
             f"Do zapłaty ({zl(summary.amount_due)}) nie wynika z Wyniku rozliczenia, "
-            f"Prognozy i wpłat ({zl(expected_due)})."
+            f"Prognozy, Bonifikaty i wpłat ({zl(expected_due)})."
         )
+
+    correction = invoice.correction
+    if correction is not None:
+        expected_difference = summary.amount_due - correction.charged_amount_due
+        if abs(expected_difference - correction.difference) > MONEY_TOLERANCE:
+            problems.append(
+                f"Kwota korekty ({zl(correction.difference)}) nie jest różnicą do zapłaty "
+                f"„należało policzyć” i „policzono” ({zl(expected_difference)})."
+            )
 
     store = invoice.energy_settlement
     if store is not None:

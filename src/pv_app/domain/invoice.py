@@ -116,6 +116,9 @@ class InvoiceHeader:
     """Strona „To jest Twoja faktura”: numer, daty, taryfa, moc."""
     site_source: Source
     """Strona podsumowania: numer PPE, nazwa obiektu, adres, częstotliwość rozliczenia."""
+    issue_date_source: Source | None = None
+    """Strona z datą wystawienia, gdy nie jest stroną ``source`` (Faktura korygująca: pod
+    kwotą do zwrotu, na drugiej stronie)."""
 
 
 @dataclass(frozen=True)
@@ -208,6 +211,9 @@ class SettlementSummary:
     """Energia pobrana w analogicznym okresie poprzedniego roku według Taurona."""
     same_period_last_year_source: Source | None
     source: Source
+    discount: Amount | None = None
+    """Bonifikata na Fakturze (ujemna kwota), np. w części „należało policzyć” Faktury
+    korygującej; ``None``, gdy jej nie ma."""
 
 
 @dataclass(frozen=True)
@@ -230,6 +236,26 @@ class Forecast:
 
 
 @dataclass(frozen=True)
+class Correction:
+    """Co koryguje Faktura korygująca i jak zmienia kwotę („policzono” → „należało policzyć”)."""
+
+    corrected_invoice_number: str
+    corrected_invoice_issue_date: date
+    reason: str
+    """Przyczyna korekty, jak na Fakturze."""
+    charged_result: Amount
+    """Wynik rozliczenia w części „policzono”."""
+    charged_amount_due: Decimal
+    """Do zapłaty w części „policzono”."""
+    difference: Decimal
+    """Różnica do zapłaty po korekcie; ujemna = do zwrotu."""
+    source: Source
+    """Strona z tytułem: numer korygowanej Faktury, przyczyna, część „policzono”."""
+    difference_source: Source
+    """Strona z kwotą do zwrotu lub zapłaty i datą wystawienia."""
+
+
+@dataclass(frozen=True)
 class Invoice:
     kind: DocumentKind
     layout: Layout
@@ -240,15 +266,22 @@ class Invoice:
     lines: tuple[InvoiceLine, ...]
     summary: SettlementSummary
     forecasts: tuple[Forecast, ...]
+    correction: Correction | None = None
+    """Tylko w Fakturze korygującej; jej pozostałe części to „należało policzyć”."""
 
     @property
     def number(self) -> str:
         return self.header.number
 
     @property
-    def period_cost(self) -> Decimal:
-        """Koszt okresu: Wynik rozliczenia brutto (bez Not obciążeniowych, które dojdą później)."""
-        return self.summary.result.gross
+    def result_after_discount(self) -> Decimal:
+        """Wynik rozliczenia brutto pomniejszony o Bonifikatę z tej Faktury (Bonifikata na
+        Fakturze jest ujemna, na Nocie obciążeniowej dodatnia — tak jak na dokumentach).
+
+            Pełny Koszt okresu odejmuje jeszcze bonifikaty z Not obciążeniowych
+            (``domain/period_cost.py``)."""
+        discount = self.summary.discount.gross if self.summary.discount else Decimal(0)
+        return self.summary.result.gross + discount
 
     @property
     def settlement_basis(self) -> SettlementBasis:

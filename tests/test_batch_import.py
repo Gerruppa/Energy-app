@@ -225,3 +225,69 @@ def test_copy_of_a_rejected_file_in_the_same_batch_is_a_duplicate(
 
     assert [r.file_name for r in summary.rejected] == ["zepsuta.pdf"]
     assert [d.file_name for d in summary.duplicates] == ["zepsuta (1).pdf"]
+
+
+NOTE = "debit_note_correction"
+NOTE_FOR_HOME = ("590000000000000002", HOME.ppe_number)
+
+
+def test_imports_debit_note_of_known_metering_point(
+    repository: InMemoryRepository, archive: FileArchive
+) -> None:
+    summary = import_files(
+        repository, archive, [upload(NOTE, replace=NOTE_FOR_HOME)], read=read_fixture
+    )
+
+    assert [f.invoice_number for f in summary.imported] == ["TM3NBN000002/001"]
+    assert [n.number for n in repository.list_debit_notes(HOME.ppe_number)] == ["TM3NBN000002/001"]
+    assert archive.path(summary.imported[0].archive_name).exists()
+
+
+def test_debit_note_with_the_same_number_is_a_duplicate(
+    repository: InMemoryRepository, archive: FileArchive
+) -> None:
+    import_files(repository, archive, [upload(NOTE, replace=NOTE_FOR_HOME)], read=read_fixture)
+    # Inny plik (inny hash) z tą samą Notą.
+    copy = upload(NOTE, "kopia.pdf", replace=NOTE_FOR_HOME)
+    copy = UploadedFile(copy.name, copy.content + b" ")
+
+    summary = import_files(repository, archive, [copy], read=read_fixture)
+
+    assert [d.reason for d in summary.duplicates] == [
+        "Nota obciążeniowa TM3NBN000002/001 jest już w aplikacji."
+    ]
+
+
+def test_debit_note_of_new_metering_point_waits_with_its_invoices_even_if_uploaded_first(
+    repository: InMemoryRepository, archive: FileArchive
+) -> None:
+    files = [upload(NOTE), upload(HALF_YEAR)]
+    summary = import_files(repository, archive, files, read=read_fixture)
+
+    (new_point,) = summary.new_metering_points
+    assert new_point.file_names == (f"{HALF_YEAR}.pdf", f"{NOTE}.pdf")
+    assert new_point.first_invoice.number == "E/TM3/BN000002/0002/26"
+
+    _, continuation = add_new_metering_point(
+        repository, archive, new_point, name="Mieszkanie", icon=SiteIcon.FLAT, charges_car=False
+    )
+
+    assert [f.invoice_number for f in continuation.imported] == [
+        "E/TM3/BN000002/0002/26",
+        "TM3NBN000002/001",
+    ]
+    assert [n.number for n in repository.list_debit_notes("590000000000000002")] == [
+        "TM3NBN000002/001"
+    ]
+
+
+def test_debit_note_of_unknown_metering_point_without_its_invoice_is_rejected(
+    repository: InMemoryRepository, archive: FileArchive
+) -> None:
+    summary = import_files(repository, archive, [upload(NOTE)], read=read_fixture)
+
+    assert summary.new_metering_points == []
+    assert [r.reason for r in summary.rejected] == [
+        "Nota obciążeniowa TM3NBN000002/001 dotyczy punktu poboru, którego nie ma "
+        "w aplikacji. Wgraj ją razem z Fakturą tego punktu poboru albo po jego dodaniu."
+    ]

@@ -18,8 +18,8 @@ _UPLOADER_ROUND = "import_uploader_round"
 def render_import_page(repository: Repository, archive: FileArchive) -> None:
     st.title("Wgraj Faktury")
     st.write(
-        "Wybierz jeden lub wiele PDF-ów Faktur Tauron. Pliki i Faktury, które już są "
-        "w aplikacji, zostaną pominięte."
+        "Wybierz jeden lub wiele PDF-ów Faktur Tauron (także korygujących) i Not "
+        "obciążeniowych. Pliki i dokumenty, które już są w aplikacji, zostaną pominięte."
     )
     round_ = st.session_state.setdefault(_UPLOADER_ROUND, 0)
     uploads = st.file_uploader(
@@ -69,6 +69,6 @@ def render_summary(summary: ImportSummary) -> None:
     for skipped in summary.duplicates:
         st.info(f"**{skipped.file_name}**: {skipped.reason}")
     for file in summary.imported:
-        st.success(f"**{file.file_name}**: Faktura {file.invoice_number}")
+        st.success(f"**{file.file_name}**: {file.kind.value} {file.invoice_number}")
         for warning in file.warnings:
             st.warning(f"**{file.file_name}**: {warning}")

@@ -42,8 +42,13 @@ def _decode(tp: Any, value: Any) -> Any:
         return tuple(_decode(item_type, item) for item in value)
     if dataclasses.is_dataclass(tp):
         hints = typing.get_type_hints(tp)
+        # Pole dodane później (z wartością domyślną) brakuje w JSON-ie zapisanym wcześniej.
         return typing.cast(Any, tp)(
-            **{f.name: _decode(hints[f.name], value[f.name]) for f in dataclasses.fields(tp)}
+            **{
+                f.name: _decode(hints[f.name], value[f.name])
+                for f in dataclasses.fields(tp)
+                if f.name in value or f.default is dataclasses.MISSING
+            }
         )
     if isinstance(tp, type) and issubclass(tp, Enum):
         return tp(value)
