@@ -61,6 +61,8 @@ def invoice_for(
                 base.energy_settlement,
                 imported_kwh=Decimal(imported),
                 exported_kwh=Decimal(exported),
+                exported_after_coefficient_kwh=Decimal(exported)
+                * base.energy_settlement.discount_coefficient,
                 source=Source(number, 4),
             )
             if exported is not None

@@ -40,6 +40,8 @@ class PeriodTotals:
     """Miesiące (``month_index``), których dotyczą sumy."""
     imported_kwh: Decimal
     exported_kwh: Decimal | None
+    stored_kwh: Decimal | None
+    """Przyrost Magazynu energii z Faktur (Energia oddana × Współczynnik opustu)."""
     period_cost: Decimal
     invoices: tuple[InvoiceRef, ...]
     cost_groups: Mapping[CostGroup, Decimal] = field(default_factory=dict)
@@ -144,6 +146,7 @@ class History:
         wanted = tuple(sorted(months))
         shares = [s for s in self.shares if s.month in wanted]
         exported = [s.exported_kwh for s in shares if s.exported_kwh is not None]
+        stored = [s.stored_kwh for s in shares if s.stored_kwh is not None]
         dates = DateRange(first_day(wanted[0]), last_day(wanted[-1]))
         refs = []
         for number in dict.fromkeys(s.invoice_number for s in shares):
@@ -162,6 +165,7 @@ class History:
             months=wanted,
             imported_kwh=sum((s.imported_kwh for s in shares), Decimal(0)),
             exported_kwh=sum(exported, Decimal(0)) if exported else None,
+            stored_kwh=sum(stored, Decimal(0)) if stored else None,
             period_cost=sum((s.period_cost for s in shares), Decimal(0)),
             invoices=tuple(refs),
             cost_groups=_sum_groups(shares),

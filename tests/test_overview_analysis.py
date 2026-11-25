@@ -61,6 +61,8 @@ def test_month_compared_with_same_month_a_year_earlier_from_own_history() -> Non
     earlier = result.year_earlier
     assert earlier is not None
     assert (earlier.imported_kwh, earlier.exported_kwh) == (Decimal("310"), Decimal("620"))
+    # Przyrost Magazynu energii z Faktur (Energia oddana × 0,8), rozłożony jak Energia oddana.
+    assert (result.current.stored_kwh, earlier.stored_kwh) == (Decimal("240"), Decimal("496"))
     # Składniki stałe po równo na 12 miesięcy.
     assert earlier.period_cost == Decimal("10")
     assert earlier.approximate

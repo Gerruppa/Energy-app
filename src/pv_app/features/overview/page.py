@@ -12,7 +12,7 @@ from pv_app.features.monthly_figure import BLOCK_NOTE, FORECAST_NOTE, energy_fig
 from pv_app.features.navigation import open_invoice
 from pv_app.features.overview.analysis import forecast_chart
 from pv_app.features.overview.top import render_top
-from pv_app.features.terms import FORECAST_HELP
+from pv_app.features.terms import FORECAST_HELP, STORED_HELP
 from pv_app.storage.repository import Repository
 
 EXPORTED_HELP = (
@@ -167,6 +167,12 @@ def _render_comparison(context: FeatureContext, comparison: YearOverYear) -> Non
             earlier.exported_kwh if earlier is not None else None,
             money=False,
         )
+        add(
+            "Do Magazynu energii",
+            current.stored_kwh,
+            earlier.stored_kwh if earlier is not None else None,
+            money=False,
+        )
     add(
         "Koszt okresu",
         current.period_cost,
@@ -180,7 +186,11 @@ def _render_comparison(context: FeatureContext, comparison: YearOverYear) -> Non
             "": st.column_config.TextColumn(
                 "",
                 help=f"Pobrane z sieci: {imported_help}"
-                + (f"\n\nOddane do sieci: {EXPORTED_HELP}" if point.net_metering else "")
+                + (
+                    f"\n\nOddane do sieci: {EXPORTED_HELP}\n\nDo Magazynu energii: {STORED_HELP}"
+                    if point.net_metering
+                    else ""
+                )
                 + f"\n\nKoszt okresu: {PERIOD_COST_HELP}",
             )
         },

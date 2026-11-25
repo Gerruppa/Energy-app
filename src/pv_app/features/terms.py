@@ -30,6 +30,12 @@ ESTIMATE_HELP = (
 )
 
 
+STORED_HELP = (
+    "Ile kWh przybyło w Magazynie energii: oddane do sieci × Współczynnik opustu z Faktury "
+    "(np. 0,8 kWh za każdą oddaną kWh)."
+)
+
+
 FORECAST_HELP = (
     "Prognoza to zaliczka za przyszły okres, wyliczona przez Tauron z przewidywanej "
     "Energii pobranej i rozliczana w następnej Fakturze."

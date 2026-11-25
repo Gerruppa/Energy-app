@@ -12,7 +12,12 @@ from pv_app.app.batch_import import (
     add_new_metering_point,
     import_files,
 )
-from pv_app.app.import_page import IMPORT_SUMMARY, IMPORTING, NEW_METERING_POINT
+from pv_app.app.import_page import (
+    ADDED_METERING_POINT,
+    IMPORT_SUMMARY,
+    IMPORTING,
+    NEW_METERING_POINT,
+)
 from pv_app.app.wizard import MeteringPointAlreadyExists
 from pv_app.domain.invoice import Invoice, SettlementType
 from pv_app.domain.metering_point import SiteIcon
@@ -132,8 +137,11 @@ def render_naming_step(
     if summary is not None:
         st.session_state[IMPORT_SUMMARY] = summary.after_adding(new_point, continuation)
     if not st.session_state.get(IMPORTING):
-        # Kreator z ekranu powitalnego kończy się w widoku nowego PPE.
+        # Kreator z ekranu powitalnego albo paska bocznego kończy się na stronie „Wgraj
+        # pliki”, żeby od razu wgrać pozostałe Faktury nowego PPE.
         st.session_state.pop(ADDING_METERING_POINT, None)
         st.session_state.pop(IMPORT_SUMMARY, None)
+        st.session_state[IMPORTING] = True
+        st.session_state[ADDED_METERING_POINT] = point.name
         st.query_params["ppe"] = point.slug
     st.rerun()

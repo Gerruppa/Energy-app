@@ -1,12 +1,19 @@
 """Ustawienia PPE i wybór PPE przez adres strony, w powłoce Streamlit."""
 
 from dataclasses import replace
+from pathlib import Path
 
 from streamlit.testing.v1 import AppTest
 
+from pv_app.app.batch_import import import_files
+from pv_app.app.import_page import NEW_METERING_POINT
 from pv_app.app.settings import database_path
+from pv_app.app.wizard_page import ADDING_METERING_POINT
 from pv_app.domain.metering_point import MeteringPoint, SiteIcon
+from pv_app.storage.archive import FileArchive
+from pv_app.storage.in_memory import InMemoryRepository
 from pv_app.storage.sqlite import SqliteRepository
+from test_batch_import import MONTHLY, read_fixture, upload
 
 HOME = MeteringPoint(
     ppe_number="590000000000000001",
@@ -141,3 +148,32 @@ def test_another_metering_point_is_added_from_the_sidebar_and_the_wizard_can_be_
 
     assert not app.exception
     assert "Dom" in app.title[0].value
+
+
+def test_wizard_ends_on_upload_page_asking_for_the_remaining_invoices(
+    app: AppTest, tmp_path: Path
+) -> None:
+    summary = import_files(
+        InMemoryRepository(),
+        FileArchive(tmp_path / "scratch"),
+        [upload(MONTHLY)],
+        read=read_fixture,
+    )
+    [new_point] = summary.new_metering_points
+    app.session_state[ADDING_METERING_POINT] = True
+    app.session_state[NEW_METERING_POINT] = new_point
+    app.run()
+
+    app.text_input[0].set_value("Dom")
+    next(b for b in app.button if b.label == "Zapisz punkt poboru").click().run()
+
+    assert not app.exception
+    assert [p.name for p in _saved()] == ["Dom"]
+    assert app.title[0].value == "Wgraj pliki"
+    assert app.success[0].value.startswith("Dodano punkt poboru Dom z jego pierwszą Fakturą.")
+    assert app.query_params["ppe"] == "dom"
+
+    next(b for b in app.button if b.label == "Wróć do dashboardu").click().run()
+
+    assert "Dom" in app.title[0].value
+    assert not app.success

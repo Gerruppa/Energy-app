@@ -89,6 +89,7 @@ def test_monthly_invoice_is_one_share_with_invoice_values() -> None:
             days=31,
             imported_kwh=Decimal("150"),
             exported_kwh=Decimal("300"),
+            stored_kwh=Decimal("240"),
             variable_cost=Decimal("2"),
             fixed_cost=Decimal("30"),
             period_cost=Decimal("32.04"),

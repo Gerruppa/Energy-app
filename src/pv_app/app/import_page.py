@@ -20,11 +20,19 @@ IMPORT_SUMMARY = "import_summary"
 """Klucz ``st.session_state``: podsumowanie ostatniej paczki (``ImportSummary``)."""
 NEW_METERING_POINT = "new_metering_point"
 """Klucz ``st.session_state``: ``NewMeteringPoint``, dla którego otwarto kreator."""
+ADDED_METERING_POINT = "added_metering_point"
+"""Klucz ``st.session_state``: nazwa PPE dodanego kreatorem, który prosi o pozostałe Faktury."""
 _UPLOADER_ROUND = "import_uploader_round"
 
 
 def render_import_page(repository: Repository, archive: FileArchive) -> None:
     st.title("Wgraj pliki")
+    if (added := st.session_state.get(ADDED_METERING_POINT)) is not None:
+        st.success(
+            f"Dodano punkt poboru {added} z jego pierwszą Fakturą. Wgraj teraz pozostałe "
+            "Faktury (możesz zaznaczyć wiele PDF-ów naraz), żeby zobaczyć pełną historię; "
+            "potem wróć do dashboardu."
+        )
     st.write(
         "Wybierz jeden lub wiele PDF-ów Faktur Tauron (także korygujących) i Not "
         "obciążeniowych albo Raport wartości godzinowych (xlsx) od Tauron Dystrybucji. "
@@ -49,8 +57,8 @@ def render_import_page(repository: Repository, archive: FileArchive) -> None:
     if summary is not None:
         render_summary(summary)
     if st.button("Wróć do dashboardu"):
-        st.session_state.pop(IMPORTING, None)
-        st.session_state.pop(IMPORT_SUMMARY, None)
+        for key in (IMPORTING, IMPORT_SUMMARY, ADDED_METERING_POINT):
+            st.session_state.pop(key, None)
         st.rerun()
 
 

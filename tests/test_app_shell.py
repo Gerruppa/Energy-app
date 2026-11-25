@@ -127,8 +127,13 @@ def test_view_period_defaults_to_month_of_latest_invoice_with_chart_and_comparis
     overview = app.tabs[0]
     assert len(overview.get("plotly_chart")) == 1
     table = overview.dataframe[0].value
-    assert list(table[""]) == ["Pobrane z sieci", "Oddane do sieci", "Koszt okresu"]
-    assert list(table["październik 2026"]) == ["150 kWh", "300 kWh", "32,04 zł"]
+    assert list(table[""]) == [
+        "Pobrane z sieci",
+        "Oddane do sieci",
+        "Do Magazynu energii",
+        "Koszt okresu",
+    ]
+    assert list(table["październik 2026"]) == ["150 kWh", "300 kWh", "240 kWh", "32,04 zł"]
     # Bez własnej historii: „analogiczny okres” z Faktury (170 kWh w fixture'ze).
     assert list(table["październik 2025"])[0] == "170 kWh (Tauron)"
     # Widok na start trafia do adresu strony, więc da się go udostępnić.

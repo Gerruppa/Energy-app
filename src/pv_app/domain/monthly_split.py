@@ -30,6 +30,9 @@ class MonthShare:
     """Dni Okresu rozliczeniowego w tym miesiącu."""
     imported_kwh: Decimal
     exported_kwh: Decimal | None
+    stored_kwh: Decimal | None
+    """Część przyrostu Magazynu energii z Faktury (Energia oddana × Współczynnik opustu),
+    po dniach jak Energia oddana; ``None`` bez Rozliczenia OZE."""
     variable_cost: Decimal
     """Składniki zmienne brutto."""
     fixed_cost: Decimal
@@ -79,6 +82,12 @@ def split_into_months(invoice: Invoice, period_cost: Decimal) -> list[MonthShare
         if invoice.exported_kwh is not None
         else [None] * len(days)
     )
+    settlement = invoice.energy_settlement
+    stored = (
+        _split(settlement.exported_after_coefficient_kwh, days, _KWH)
+        if settlement is not None
+        else [None] * len(days)
+    )
     variable_parts = _split(variable, days, _ZL)
     fixed_parts = _split(fixed, [1] * len(days), _ZL)
     rest_parts = _split(rest, days, _ZL)
@@ -92,6 +101,7 @@ def split_into_months(invoice: Invoice, period_cost: Decimal) -> list[MonthShare
             days=d,
             imported_kwh=imported[i],
             exported_kwh=exported[i],
+            stored_kwh=stored[i],
             variable_cost=variable_parts[i],
             fixed_cost=fixed_parts[i],
             period_cost=variable_parts[i] + fixed_parts[i] + rest_parts[i],
