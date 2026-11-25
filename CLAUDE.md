@@ -29,7 +29,7 @@ Każde issue to osobna sesja zaczynana po `/clear`. Wszystko, czego sesja potrze
 2. Pracuj na `main`: `git pull`, a stan roboczy musi być czysty, zanim zaczniesz.
 3. Przeczytaj dokumenty z mapy dla obszaru, który dotykasz.
 4. `/implement N`: `/tdd` na seamach importu i analiz (ADR 0005, `docs/architecture.md`), na koniec pełny zestaw testów (przy zmianach importu także `uv run pytest -m real_pdfs`) i `/mattpocock-skills:code-review`.
-5. Przy zmianach ekranu uruchom podgląd „demo” (`.claude/launch.json`, dane z `scripts/seed_demo.py demo-data`) i porównaj z prototypem (wariant D). Zmieniony kod wczytuje rerun w otwartej karcie (klawisz R); nowa karta dostaje kod sprzed zmiany. Przy zmianach wydruku uruchom `scripts/print_check.py`.
+5. Przy zmianach zakładek dashboardu uruchom podgląd „demo” (`.claude/launch.json`, dane z `scripts/seed_demo.py demo-data`) i porównaj z prototypem (wariant D). Strony narzędziowe (import, kreator, „Dane”, ustawienia) prototypu nie mają: sprawdza je test `AppTest` w `tests/`, a podgląd tylko wtedy, gdy zmienia się ich wygląd. Zmieniony kod wczytuje rerun w otwartej karcie (klawisz R); nowa karta dostaje kod sprzed zmiany. Przy zmianach wydruku uruchom `scripts/print_check.py`.
 6. Zaktualizuj dokumenty, które kod zmienił: status w `docs/roadmap.md`, nowe pojęcia w `GLOSSARY.md`, komendy w sekcji *Komendy* poniżej.
 7. Commit na `main` (hook sprawdza prywatność) z „Closes #N” w treści, push (zamyka issue). Na koniec komentarz w issue: co zrobiono i które kryteria akceptacji są spełnione.
 
