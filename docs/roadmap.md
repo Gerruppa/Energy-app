@@ -126,10 +126,7 @@ Wydruk dla jednego PPE do segregatora: A4, z przeglądarki (Ctrl+P → drukarka 
 
 ## F8. Punkty poboru w aplikacji
 
-**Status:** zrobione. Kreator z pierwszej Faktury (#3), pytanie o nowy PPE przy imporcie (#4), kolejne PPE z paska bocznego, ustawienia i usunięcie PPE, reguły widoczności zakładek (#13). Adres strony PPE (`?ppe=dom`) nie zmienia się po zmianie nazwy.
-
-Otwarte pytania:
-- Pasek boczny pokazuje wszystkie PPE tej kopii; czy rodzice mają widzieć tylko Dom (np. ukrycie innych PPE w swojej kopii)? Dziś każda kopia sama decyduje, które PPE dodaje.
+**Status:** zrobione. Kreator z pierwszej Faktury (#3), pytanie o nowy PPE przy imporcie (#4), kolejne PPE z paska bocznego, ustawienia i usunięcie PPE, reguły widoczności zakładek (#13). Adres strony PPE (`?ppe=dom`) nie zmienia się po zmianie nazwy. Pasek boczny pokazuje wszystkie PPE tej kopii, bez ukrywania: każda kopia sama decyduje, które PPE dodaje (XI 2026).
 
 Kreator przy pierwszym uruchomieniu i dodawanie kolejnych PPE w ustawieniach. Dodany później PPE działa tak samo jak pierwszy.
 - Kreator zaczyna od Faktury: „Dodaj punkt poboru” → wgraj dowolną Fakturę → aplikacja odczytuje i pokazuje do potwierdzenia numer PPE, adres, grupę taryfową, moc umowną i rodzaj rozliczenia (net-metering = fotowoltaika, Współczynnik opustu) → użytkownik podaje tylko nazwę, ikonę (dom / mieszkanie / inne) i czy ładuje tu auto → wgraj pozostałe Faktury → Przegląd.
