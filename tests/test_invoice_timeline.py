@@ -128,7 +128,6 @@ def test_each_invoice_is_a_period_with_settlement_basis_and_correction() -> None
 
 
 def test_counts_months_of_last_twelve_settled_on_estimated_reading() -> None:
-    september = estimated(month(2026, 9, 30, "T/09"))
     repository = repository_with(
         estimated(month(2025, 10, 31, "T/2510")),
         estimated(
@@ -136,8 +135,6 @@ def test_counts_months_of_last_twelve_settled_on_estimated_reading() -> None:
         ),
         month(2026, 2, 28, "T/2602"),
         estimated(month(2026, 3, 31, "T/2603")),
-        september,
-        correcting(september, "K/09"),
         estimated(month(2026, 11, 30, "T/2611")),
     )
 
@@ -151,6 +148,16 @@ def test_counts_months_of_last_twelve_settled_on_estimated_reading() -> None:
         "styczeń 2026",
         "marzec 2026",
     ]
+
+
+def test_estimated_month_stays_estimated_after_correcting_invoice_on_actual_reading() -> None:
+    september = estimated(month(2026, 9, 30, "T/09"))
+    repository = repository_with(september, correcting(september, "K/09"))
+
+    timeline = invoice_timeline(repository, HOME, TODAY)
+
+    assert timeline is not None
+    assert [month_label(m) for m in timeline.estimated_months.months] == ["wrzesień 2026"]
 
 
 def test_shows_debit_notes_and_only_forecasts_after_last_invoice() -> None:

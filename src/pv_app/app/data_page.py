@@ -105,8 +105,8 @@ def _render_timeline(timeline: InvoiceTimeline, today: date) -> None:
         months = ", ".join(month_label(m) for m in estimate.months)
         st.warning(
             f"🟡 Ostatnie 12 miesięcy ({window}): {count} z 12 na odczycie szacunkowym "
-            f"({months}). Tauron oszacował stan licznika; kolejna Faktura go wyrównuje, "
-            f"ale okres zostaje oznaczony.{missing}"
+            f"({months}). Tauron oszacował stan licznika; kolejna Faktura albo korekta go "
+            f"wyrównuje, ale okres zostaje oznaczony.{missing}"
         )
     elif missing:
         st.info(f"Ostatnie 12 miesięcy ({window}): żaden na odczycie szacunkowym.{missing}")

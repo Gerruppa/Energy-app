@@ -33,7 +33,7 @@ F1 + F1a + F0 + F2 + F3 w osobnych widokach PPE. Ustalenia z grillowania (XI 202
 - Strona danych: oś czasu Faktur na PPE (luki, nakładanie, korekty, odczyty szacunkowe), usunięcie Faktury, przebudowa bazy z archiwum.
 - Podstawa rozliczenia widoczna przy każdej Fakturze i każdym okresie (tabela, oś czasu, podpowiedzi wykresów): 🟢 odczyt rzeczywisty, 🟡 odczyt szacunkowy, ⚪ Prognoza.
 - Prognozy z harmonogramów na wykresach jako przerywana linia obok rzeczywistości; nigdy nie wchodzą do Kosztu okresu ani kWh.
-- Okres rozliczony na odczycie szacunkowym zostaje oznaczony 🟡 także po wyrównaniu kolejną Fakturą; strona danych pokazuje, ile z ostatnich 12 miesięcy opierało się na szacunku.
+- Okres rozliczony na odczycie szacunkowym zostaje oznaczony 🟡 także po wyrównaniu kolejną Fakturą i po zastąpieniu Fakturą korygującą na odczycie rzeczywistym (XI 2026); strona danych pokazuje, ile z ostatnich 12 miesięcy opierało się na szacunku.
 - Na ekranie „oddane do sieci” i „pobrane z sieci”; słowa „produkcja” i „zużycie” tylko w znaczeniu z GLOSSARY, gdy będą dane z falownika.
 - Rodzice korzystają z aplikacji u Ciebie albo z własnej kopii repozytorium na swoim komputerze; aplikacja działa po skopiowaniu folderu, bez serwera, start dwuklikiem w `Start.bat`. Każda kopia ma własne `data/` i sama decyduje, które PPE monitoruje; Faktury można wgrywać w każdej kopii.
 - Punkty poboru dodaje się w aplikacji (pierwsze uruchomienie i później w ustawieniach), nie w kodzie — szczegóły w F8.

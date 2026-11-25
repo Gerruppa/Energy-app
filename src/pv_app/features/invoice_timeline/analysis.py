@@ -61,8 +61,9 @@ ESTIMATE_WINDOW_MONTHS = 12
 class EstimatedMonths:
     """Które z ostatnich 12 pełnych miesięcy przed „dziś” rozliczono na odczycie szacunkowym.
 
-    Miesiąc liczy się, gdy choć jeden jego dzień rozlicza Faktura (niezastąpiona) na odczycie
-    szacunkowym; zostaje policzony także po wyrównaniu kolejną Fakturą."""
+    Miesiąc liczy się, gdy choć jeden jego dzień rozlicza Faktura na odczycie szacunkowym;
+    zostaje policzony także po wyrównaniu kolejną Fakturą i po zastąpieniu tej Faktury Fakturą
+    korygującą."""
 
     window: DateRange
     months: tuple[int, ...]
@@ -111,13 +112,16 @@ def _months(invoice: Invoice) -> range:
     return range(month_index(period.start), month_index(period.end) + 1)
 
 
-def _estimated_months(counted: list[Invoice], today: date) -> EstimatedMonths:
+def _estimated_months(
+    invoices: list[Invoice], counted: list[Invoice], today: date
+) -> EstimatedMonths:
+    """``invoices``: wszystkie Faktury PPE (szacunek); ``counted``: bez zastąpionych (pokrycie)."""
     last = month_index(today) - 1
     window = range(last - ESTIMATE_WINDOW_MONTHS + 1, last + 1)
     covered = {m for invoice in counted for m in _months(invoice)}
     estimated = {
         m
-        for invoice in counted
+        for invoice in invoices
         if invoice.settlement_basis is SettlementBasis.ESTIMATED_READING
         for m in _months(invoice)
     }
@@ -160,7 +164,7 @@ def invoice_timeline(
         periods=tuple(_timeline_period(i, costs) for i in invoices),
         gaps=tuple(gaps),
         overlaps=tuple(overlaps),
-        estimated_months=_estimated_months(counted, today),
+        estimated_months=_estimated_months(invoices, counted, today),
         debit_notes=tuple(
             sorted(
                 (_note(note, costs) for note in costs.debit_notes),
