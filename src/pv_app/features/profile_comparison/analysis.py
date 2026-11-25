@@ -74,9 +74,12 @@ class ProfileComparison:
     """Profil godzinowy PPE obok jego Faktur."""
 
     periods: tuple[PeriodComparison, ...]
-    """Okresy rozliczeniowe, które Profil godzinowy pokrywa choć jednym dniem, od najstarszego."""
-    without_profile: int
-    """Ile niezastąpionych Okresów rozliczeniowych nie ma w Profilu ani jednego dnia."""
+    """Okresy rozliczeniowe od pierwszego, który Profil godzinowy pokrywa choć jednym dniem, od
+    najstarszego. Okres po końcu Profilu ma wiersz z samymi brakującymi dniami: przypomina
+    o wgraniu nowego Raportu wartości godzinowych."""
+    before_profile: int
+    """Ile niezastąpionych Okresów rozliczeniowych kończy się przed pierwszym dniem Profilu
+    (tylko policzone, bez wiersza: dla tych lat Raportu zwykle nie ma)."""
 
 
 @dataclass
@@ -100,12 +103,10 @@ def _period_days(period: DateRange) -> list[date]:
     return [period.start + timedelta(days=n) for n in range(period.days)]
 
 
-def _compare(invoice: Invoice, profile: dict[date, _Day]) -> PeriodComparison | None:
+def _compare(invoice: Invoice, profile: dict[date, _Day]) -> PeriodComparison:
     period = invoice.header.billing_period
     period_days = _period_days(period)
     covered = [profile[d] for d in period_days if d in profile]
-    if not covered:
-        return None
     missing = sum(1 for d in period_days if d not in profile or profile[d].hours < hours_in_day(d))
     imported = exported = None
     if missing == 0:
@@ -136,5 +137,9 @@ def profile_comparison(repository: Repository, ppe_number: str) -> ProfileCompar
     invoices = repository.list_invoices(ppe_number)
     superseded = superseded_invoices(invoices)
     counted = [i for i in invoices if i.number not in superseded]
-    periods = [c for i in counted if (c := _compare(i, profile)) is not None]
-    return ProfileComparison(tuple(periods), without_profile=len(counted) - len(periods))
+    first_day = min(profile)
+    compared = [i for i in counted if i.header.billing_period.end >= first_day]
+    return ProfileComparison(
+        tuple(_compare(i, profile) for i in compared),
+        before_profile=len(counted) - len(compared),
+    )

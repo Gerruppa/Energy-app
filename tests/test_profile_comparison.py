@@ -129,7 +129,7 @@ def test_day_with_23_hours_is_complete() -> None:
     assert comparison.periods[0].missing_days == 0
 
 
-def test_superseded_invoices_and_periods_without_profile_are_left_out() -> None:
+def test_superseded_invoices_and_periods_before_the_profile_are_left_out() -> None:
     september = DateRange(date(2026, 9, 1), date(2026, 9, 30))
     old = invoice_for(september, "300", "100", number="T/0")
     invoice = invoice_for(OCTOBER, "372.5", "186.25", number="T/1")
@@ -141,10 +141,28 @@ def test_superseded_invoices_and_periods_without_profile_are_left_out() -> None:
 
     assert comparison is not None
     assert [p.invoice_number for p in comparison.periods] == ["K/1"]
-    assert comparison.without_profile == 1
+    assert comparison.before_profile == 1
 
 
 def test_metering_point_without_profile_has_no_comparison() -> None:
     invoice = invoice_for(OCTOBER, "370", "186.5", number="T/1")
 
     assert profile_comparison(repository_with([invoice], []), HOME) is None
+
+
+def test_period_after_the_profile_ends_shows_all_days_missing() -> None:
+    # Nowa Faktura przyszła, a Raportu wartości godzinowych za listopad jeszcze nie ma.
+    november = DateRange(date(2026, 11, 1), date(2026, 11, 30))
+    october = invoice_for(OCTOBER, "372.5", "186.25", number="T/1")
+    later = invoice_for(november, "300", "50", number="T/2")
+
+    comparison = profile_comparison(
+        repository_with([october, later], days(OCTOBER.start, OCTOBER.end)), HOME
+    )
+
+    assert comparison is not None
+    assert [(p.invoice_number, p.missing_days) for p in comparison.periods] == [
+        ("T/1", 0),
+        ("T/2", 30),
+    ]
+    assert comparison.before_profile == 0

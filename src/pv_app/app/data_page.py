@@ -300,14 +300,16 @@ def _render_profile_comparison(comparison: ProfileComparison) -> None:
     if comparison.periods:
         st.dataframe([_comparison_entry(p) for p in reversed(comparison.periods)], hide_index=True)
     else:
-        st.info("Profil godzinowy nie obejmuje żadnego dnia z Okresów rozliczeniowych Faktur.")
+        st.info(
+            "Wszystkie Okresy rozliczeniowe kończą się przed pierwszym dniem Profilu godzinowego."
+        )
     for period in comparison.periods:
         if period.to_check:
             st.warning(_to_check_message(period))
-    if comparison.without_profile:
+    if comparison.before_profile:
         st.caption(
-            f"Okresy rozliczeniowe bez żadnego dnia w Profilu godzinowym: "
-            f"{comparison.without_profile} (pominięte)."
+            f"Okresy rozliczeniowe sprzed pierwszego dnia Profilu godzinowego: "
+            f"{comparison.before_profile} (pominięte)."
         )
 
 
