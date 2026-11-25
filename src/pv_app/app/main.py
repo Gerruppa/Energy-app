@@ -1,7 +1,10 @@
 """Powłoka Streamlit. Uruchamiana przez ``Start.bat`` (``python -m pv_app``)."""
 
+from datetime import date
+
 import streamlit as st
 
+from pv_app.app.data_page import DATA_PAGE, close_data_page, render_data_page
 from pv_app.app.import_page import IMPORTING, NEW_METERING_POINT, render_import_page
 from pv_app.app.settings import archive_dir, database_path
 from pv_app.app.view_period_switcher import current_view_period, render_view_period_switcher
@@ -37,7 +40,11 @@ try:
             st.rerun()
     else:
         if st.sidebar.button("Wgraj pliki", type="primary"):
+            close_data_page()
             st.session_state[IMPORTING] = True
+            st.rerun()
+        if st.sidebar.button("Dane", help="Oś czasu Faktur, usuwanie Faktur, przebudowa bazy"):
+            st.session_state[DATA_PAGE] = True
             st.rerun()
         requested = st.query_params.get("ppe")
         point = next((p for p in metering_points if p.slug == requested), metering_points[0])
@@ -46,7 +53,9 @@ try:
         context = FeatureContext(
             repository=repository, metering_point=point, view_period=view_period
         )
-        if (invoice_number := requested_invoice()) is not None:
+        if st.session_state.get(DATA_PAGE):
+            render_data_page(context, archive, today=date.today())
+        elif (invoice_number := requested_invoice()) is not None:
             render_invoice_page(context, archive, invoice_number)
         else:
             st.title(f"{point.icon.emoji} {point.name}")

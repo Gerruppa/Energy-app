@@ -37,6 +37,11 @@ class Repository(Protocol):
         """Faktury PPE (także korygujące i zastąpione) od najstarszego Okresu rozliczeniowego."""
         ...
 
+    def delete_invoice(self, number: str) -> SourceFile | None:
+        """Usuwa Fakturę i wpis jej wgranego pliku; zwraca usunięty wpis (kopię w archiwum
+        usuwa wywołujący) albo ``None``, gdy Faktura nie miała pliku."""
+        ...
+
     def add_debit_note(self, note: DebitNote) -> None: ...
 
     def has_debit_note(self, number: str) -> bool: ...
@@ -49,6 +54,10 @@ class Repository(Protocol):
 
     def find_source_file(self, sha256: str) -> SourceFile | None: ...
 
+    def list_source_files(self) -> list[SourceFile]:
+        """Wgrane pliki w kolejności zapisu (przebudowa bazy wgrywa je w tej kolejności)."""
+        ...
+
     def find_source_file_for(self, document_number: str) -> SourceFile | None:
         """Wgrany plik Faktury albo Noty obciążeniowej o tym numerze."""
         ...
@@ -60,4 +69,9 @@ class Repository(Protocol):
 
     def list_hourly_readings(self, ppe_number: str) -> list[HourlyReading]:
         """Profil godzinowy PPE od najstarszej godziny."""
+        ...
+
+    def clear_documents(self) -> None:
+        """Usuwa Faktury, Noty obciążeniowe, wpisy wgranych plików i Profil godzinowy przed
+        przebudową bazy z archiwum; PPE i ich ustawienia zostają."""
         ...

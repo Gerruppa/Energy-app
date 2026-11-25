@@ -36,6 +36,13 @@ class InMemoryRepository:
             key=lambda i: (i.header.billing_period.start, i.number),
         )
 
+    def delete_invoice(self, number: str) -> SourceFile | None:
+        self._invoices = [i for i in self._invoices if i.number != number]
+        source_file = self.find_source_file_for(number)
+        if source_file is not None:
+            del self._source_files[source_file.sha256]
+        return source_file
+
     def add_debit_note(self, note: DebitNote) -> None:
         self._debit_notes.append(note)
 
@@ -54,6 +61,9 @@ class InMemoryRepository:
     def find_source_file(self, sha256: str) -> SourceFile | None:
         return self._source_files.get(sha256)
 
+    def list_source_files(self) -> list[SourceFile]:
+        return list(self._source_files.values())
+
     def find_source_file_for(self, document_number: str) -> SourceFile | None:
         return next(
             (f for f in self._source_files.values() if f.invoice_number == document_number),
@@ -71,3 +81,9 @@ class InMemoryRepository:
             (r for r in self._hourly_readings.values() if r.ppe_number == ppe_number),
             key=lambda r: (r.hour_end, r.extra_hour),
         )
+
+    def clear_documents(self) -> None:
+        self._invoices = []
+        self._debit_notes = []
+        self._source_files = {}
+        self._hourly_readings = {}

@@ -288,3 +288,24 @@ def test_correcting_invoice_page_shows_amount_after_correction(app: AppTest) -> 
     assert (due.label, due.value) == ("Do zwrotu", "12,30 zł")
     first_columns = [str(v) for t in app.table for v in t.value.iloc[:, 0]]
     assert "Do zwrotu po korekcie" in first_columns
+
+
+def test_data_page_from_sidebar_shows_timeline_and_invoice_list(app: AppTest) -> None:
+    invoice = import_document(
+        RawDocument.from_json(FIXTURES / "new_layout_net_metering_monthly.json")
+    ).invoice
+    assert invoice is not None
+    repo = SqliteRepository(database_path())
+    repo.add_metering_point(HOME)
+    repo.add_invoice(invoice)
+    repo.close()
+    app.run()
+
+    next(b for b in app.sidebar.button if b.label == "Dane").click().run()
+
+    assert not app.exception
+    assert app.title[0].value == "Dane: 🏠 Dom"
+    assert list(app.dataframe[0].value["Okres"]) == ["01.10.2026 – 31.10.2026"]
+    assert [b.label for b in app.button if b.label.startswith("Przebuduj")] == [
+        "Przebuduj bazę z archiwum…"
+    ]

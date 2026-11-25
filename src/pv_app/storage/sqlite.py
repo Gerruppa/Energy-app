@@ -150,6 +150,16 @@ class SqliteRepository:
         ).fetchall()
         return [from_json(Invoice, r[0]) for r in rows]
 
+    def delete_invoice(self, number: str) -> SourceFile | None:
+        source_file = self.find_source_file_for(number)
+        with self._connection:
+            self._connection.execute("DELETE FROM invoice WHERE number = ?", (number,))
+            if source_file is not None:
+                self._connection.execute(
+                    "DELETE FROM source_file WHERE sha256 = ?", (source_file.sha256,)
+                )
+        return source_file
+
     def add_debit_note(self, note: DebitNote) -> None:
         with self._connection:
             self._connection.execute(
@@ -191,6 +201,12 @@ class SqliteRepository:
             (sha256,),
         ).fetchone()
         return SourceFile(*row) if row else None
+
+    def list_source_files(self) -> list[SourceFile]:
+        rows = self._connection.execute(
+            "SELECT sha256, file_name, archive_name, invoice_number FROM source_file ORDER BY rowid"
+        ).fetchall()
+        return [SourceFile(*r) for r in rows]
 
     def find_source_file_for(self, document_number: str) -> SourceFile | None:
         row = self._connection.execute(
@@ -249,3 +265,8 @@ class SqliteRepository:
             )
             for r in rows
         ]
+
+    def clear_documents(self) -> None:
+        with self._connection:
+            for table in ("invoice", "debit_note", "source_file", "hourly_reading"):
+                self._connection.execute(f"DELETE FROM {table}")

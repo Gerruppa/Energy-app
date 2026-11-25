@@ -222,3 +222,52 @@ def test_newer_report_replaces_values_of_the_same_hour(repository: Repository) -
         Decimal("0.25"),
         Decimal("0.3"),
     ]
+
+
+def source_file_for(number: str, sha: str) -> SourceFile:
+    return SourceFile(sha * 32, f"{sha}.pdf", f"{sha * 6}-{sha}.pdf", number)
+
+
+def test_deleted_invoice_is_gone_together_with_its_source_file(repository: Repository) -> None:
+    october = fixture_invoice("new_layout_net_metering_monthly")
+    other = fixture_invoice("new_layout_standard_half_year")
+    for invoice, sha in ((october, "ab"), (other, "cd")):
+        repository.add_invoice(invoice)
+        repository.add_source_file(source_file_for(invoice.number, sha))
+
+    deleted = repository.delete_invoice(october.number)
+
+    assert deleted == source_file_for(october.number, "ab")
+    assert not repository.has_invoice(october.number)
+    assert repository.find_source_file("ab" * 32) is None
+    assert repository.has_invoice(other.number)
+    assert repository.find_source_file("cd" * 32) == source_file_for(other.number, "cd")
+
+
+def test_source_files_are_listed_in_the_order_they_were_added(repository: Repository) -> None:
+    files = [
+        source_file_for("B/1", "ff"),
+        source_file_for("A/1", "00"),
+        source_file_for("C/1", "aa"),
+    ]
+    for source_file in files:
+        repository.add_source_file(source_file)
+
+    assert repository.list_source_files() == files
+
+
+def test_clearing_documents_keeps_metering_points(repository: Repository) -> None:
+    invoice = fixture_invoice("new_layout_net_metering_monthly")
+    repository.add_metering_point(HOME)
+    repository.add_invoice(invoice)
+    repository.add_debit_note(fixture_debit_note())
+    repository.add_source_file(source_file_for(invoice.number, "ab"))
+    repository.add_hourly_readings([hour(1, 1, "0.1")])
+
+    repository.clear_documents()
+
+    assert repository.list_metering_points() == [HOME]
+    assert repository.list_invoices(HOME.ppe_number) == []
+    assert repository.list_debit_notes(fixture_debit_note().ppe_number) == []
+    assert repository.list_source_files() == []
+    assert repository.list_hourly_readings(HOME.ppe_number) == []

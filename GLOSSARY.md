@@ -38,6 +38,13 @@ _Avoid_: nadpłata/niedopłata jako osobne pojęcia
 **Brakująca Faktura**:
 Faktura za Okres rozliczeniowy, który już się skończył, a której po zwykłym czasie wystawienia (ok. 2 tygodnie) nie ma w danych.
 
+**Luka**:
+Dni między pierwszą a ostatnią Fakturą PPE, których nie rozlicza żadna Faktura (bez Faktur zastąpionych). Sumy Okresu widoku z Luką są niepełne.
+_Avoid_: dziura, brak danych (gdy chodzi o brak Faktury)
+
+**Nakładanie się**:
+Dni rozliczone przez dwie Faktury naraz, z których żadna nie koryguje drugiej; liczą się w sumach dwa razy. Faktura korygująca za ten sam okres co Faktura zastąpiona to nie Nakładanie się.
+
 **Typ odczytu**:
 Sposób ustalenia stanu licznika na Fakturze: zdalny, fizyczny, odbiorcy albo szacunkowy.
 

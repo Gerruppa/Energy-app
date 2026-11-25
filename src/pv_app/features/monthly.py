@@ -9,7 +9,7 @@ from datetime import date
 from decimal import Decimal
 
 from pv_app.domain.cost_groups import CostGroup
-from pv_app.domain.invoice import DateRange, Invoice, Source
+from pv_app.domain.invoice import DateRange, Forecast, Invoice, Source
 from pv_app.domain.monthly_split import MonthShare, split_into_months
 from pv_app.domain.period_cost import PeriodCosts
 from pv_app.domain.view_period import first_day, last_day, month_index
@@ -363,3 +363,33 @@ class ForecastLine:
     gross: Decimal
     due_date: date
     source: Source
+
+
+def _forecast_line(invoice: Invoice, forecast: Forecast) -> ForecastLine:
+    period = forecast.period
+    single = month_index(period.start) == month_index(period.end)
+    average = per_month(forecast.import_kwh, period, single)
+    return ForecastLine(
+        forecast_number=forecast.number,
+        invoice_number=invoice.number,
+        period=period,
+        import_kwh=forecast.import_kwh,
+        per_month=average,
+        single_month=single,
+        gross=forecast.gross,
+        due_date=forecast.due_date,
+        source=forecast.source,
+    )
+
+
+def current_forecasts(invoices: list[Invoice]) -> list[ForecastLine]:
+    """Prognozy z harmonogramów; Prognozę zastępuje Prognoza na ten sam czas z później
+    wystawionej Faktury (nowszy harmonogram)."""
+    lines = []
+    for invoice in invoices:
+        newer = [i for i in invoices if i.header.issue_date > invoice.header.issue_date]
+        for forecast in invoice.forecasts:
+            replaced = any(forecast.period.overlaps(f.period) for i in newer for f in i.forecasts)
+            if not replaced:
+                lines.append(_forecast_line(invoice, forecast))
+    return sorted(lines, key=lambda line: line.period.start)

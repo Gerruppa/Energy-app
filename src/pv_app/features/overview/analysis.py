@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import date
 
 from pv_app.domain.energy_store import EnergyStore, StoreState
-from pv_app.domain.invoice import DateRange, Forecast, Invoice
+from pv_app.domain.invoice import DateRange
 from pv_app.domain.view_period import first_day, last_day, month_index
 from pv_app.features.base import Filters
 from pv_app.features.monthly import (
@@ -13,9 +13,9 @@ from pv_app.features.monthly import (
     History,
     MonthlyChart,
     build_chart,
+    current_forecasts,
     invoice_months,
     months_of,
-    per_month,
 )
 from pv_app.storage.repository import Repository
 
@@ -33,43 +33,13 @@ class ForecastChart:
     forecasts: tuple[ForecastLine, ...]
 
 
-def _forecast_line(invoice: Invoice, forecast: Forecast) -> ForecastLine:
-    period = forecast.period
-    single = month_index(period.start) == month_index(period.end)
-    average = per_month(forecast.import_kwh, period, single)
-    return ForecastLine(
-        forecast_number=forecast.number,
-        invoice_number=invoice.number,
-        period=period,
-        import_kwh=forecast.import_kwh,
-        per_month=average,
-        single_month=single,
-        gross=forecast.gross,
-        due_date=forecast.due_date,
-        source=forecast.source,
-    )
-
-
-def _current_forecasts(invoices: list[Invoice]) -> list[ForecastLine]:
-    """Prognozy z harmonogramów; Prognozę zastępuje Prognoza na ten sam czas z później
-    wystawionej Faktury (nowszy harmonogram)."""
-    lines = []
-    for invoice in invoices:
-        newer = [i for i in invoices if i.header.issue_date > invoice.header.issue_date]
-        for forecast in invoice.forecasts:
-            replaced = any(forecast.period.overlaps(f.period) for i in newer for f in i.forecasts)
-            if not replaced:
-                lines.append(_forecast_line(invoice, forecast))
-    return sorted(lines, key=lambda line: line.period.start)
-
-
 def forecast_chart(repository: Repository, filters: Filters) -> ForecastChart | None:
     """Prognozy Taurona a rzeczywistość; ``None`` bez Faktur albo bez Prognoz.
 
     Okno: 12 miesięcy do końca Okresu widoku i Prognozy do 12 miesięcy po nim, w granicach
     danych; cały okres od pierwszej Faktury do ostatniej Prognozy."""
     history = History(repository, filters.ppe_number)
-    forecasts = _current_forecasts(history.invoices)
+    forecasts = current_forecasts(history.invoices)
     if not history.invoices or not forecasts:
         return None
     first, last = invoice_months(history)
