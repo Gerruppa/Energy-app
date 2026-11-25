@@ -9,19 +9,17 @@ from decimal import Decimal
 
 import streamlit as st
 
+from pv_app.domain.cost_groups import cost_group
 from pv_app.domain.invoice import Amount, DateRange, Invoice
 from pv_app.features import formatting as fmt
 from pv_app.features.base import FeatureContext
 from pv_app.features.invoice_view.analysis import (
-    CostGroup,
-    CostGroupTotal,
     InvoiceSheet,
     YearEarlier,
-    cost_group,
     invoice_sheet,
 )
 from pv_app.features.navigation import close_invoice, open_invoice
-from pv_app.features.terms import FORECAST_HELP, store_help
+from pv_app.features.terms import FORECAST_HELP, group_text, store_help
 from pv_app.storage.archive import FileArchive
 
 PRINT_STYLE = """
@@ -111,38 +109,6 @@ TERMS = {
         "wartość „analogicznego okresu”; obie powinny być podobne."
     ),
 }
-
-GROUP_TEXTS = {
-    CostGroup.ENERGY: (
-        "Cena za sam prąd pobrany z sieci.",
-        " kWh pokryte z Magazynu energii są tu za darmo, dlatego często 0 zł.",
-    ),
-    CostGroup.VARIABLE_DISTRIBUTION: (
-        "Opłata za przesłanie każdej kWh siecią Taurona (składnik zmienny stawki sieciowej "
-        "i stawka jakościowa).",
-        " Też pokrywana z Magazynu energii.",
-    ),
-    CostGroup.PER_KWH_FEES: (
-        "Opłata OZE i kogeneracyjna: małe dopłaty do zielonej energii i elektrociepłowni, "
-        "liczone od każdej pobranej kWh.",
-        " Liczone także od kWh z Magazynu energii, dlatego nigdy nie są zerowe.",
-    ),
-    CostGroup.CAPACITY: (
-        "Stała miesięczna kwota za gotowość elektrowni na szczyty zużycia w kraju. Jej "
-        "wysokość zależy od tego, ile prądu pobieracie w ciągu roku.",
-        "",
-    ),
-    CostGroup.FIXED_FEES: (
-        "Podłączenie do sieci (składnik stały stawki sieciowej), odczyty i rozliczenia "
-        "(opłata abonamentowa) i opłata przejściowa. Płacone co miesiąc niezależnie od zużycia.",
-        "",
-    ),
-    CostGroup.UNRECOGNIZED: (
-        "Pozycje, których nazwy aplikacja nie zna. Sprawdźcie je w oryginale PDF.",
-        "",
-    ),
-}
-"""Opis grupy prostym językiem; drugi tekst dochodzi przy net-meteringu."""
 
 
 def render_invoice_page(context: FeatureContext, archive: FileArchive, number: str) -> None:
@@ -338,17 +304,12 @@ def _render_energy_settlement(invoice: Invoice) -> None:
     )
 
 
-def _group_text(group: CostGroupTotal, net_metering: bool) -> str:
-    base, with_pv = GROUP_TEXTS[group.group]
-    return base + (with_pv if net_metering else "")
-
-
 def _render_cost_groups(sheet: InvoiceSheet) -> None:
     invoice = sheet.invoice
     net_metering = invoice.energy_settlement is not None
     st.subheader(f"Za co płacicie: {fmt.zl(sheet.period_cost)}", help=TERMS["cost_groups"])
     rows = [
-        (group.group.value, fmt.zl(group.gross), _group_text(group, net_metering))
+        (group.group.value, fmt.zl(group.gross), group_text(group.group, net_metering))
         for group in sheet.cost_groups
     ]
     discount = invoice.summary.discount

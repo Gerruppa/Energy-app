@@ -2,6 +2,7 @@
 
 from decimal import Decimal
 
+from pv_app.domain.cost_groups import CostGroup
 from pv_app.domain.energy_store import EXPIRY_MONTHS
 from pv_app.features import formatting as fmt
 
@@ -33,3 +34,42 @@ FORECAST_HELP = (
     "Prognoza to zaliczka za przyszły okres, wyliczona przez Tauron z przewidywanej "
     "Energii pobranej i rozliczana w następnej Fakturze."
 )
+
+
+GROUP_TEXTS = {
+    CostGroup.ENERGY: (
+        "Cena za sam prąd pobrany z sieci.",
+        " kWh pokryte z Magazynu energii są tu za darmo, dlatego często 0 zł.",
+    ),
+    CostGroup.VARIABLE_DISTRIBUTION: (
+        "Opłata za przesłanie każdej kWh siecią Taurona (składnik zmienny stawki sieciowej "
+        "i stawka jakościowa).",
+        " Też pokrywana z Magazynu energii.",
+    ),
+    CostGroup.PER_KWH_FEES: (
+        "Opłata OZE i kogeneracyjna: małe dopłaty do zielonej energii i elektrociepłowni, "
+        "liczone od każdej pobranej kWh.",
+        " Liczone także od kWh z Magazynu energii, dlatego nigdy nie są zerowe.",
+    ),
+    CostGroup.CAPACITY: (
+        "Stała miesięczna kwota za gotowość elektrowni na szczyty zużycia w kraju. Jej "
+        "wysokość zależy od tego, ile prądu pobieracie w ciągu roku.",
+        "",
+    ),
+    CostGroup.FIXED_FEES: (
+        "Podłączenie do sieci (składnik stały stawki sieciowej), odczyty i rozliczenia "
+        "(opłata abonamentowa) i opłata przejściowa. Płacone co miesiąc niezależnie od zużycia.",
+        "",
+    ),
+    CostGroup.UNRECOGNIZED: (
+        "Pozycje, których nazwy aplikacja nie zna. Sprawdźcie je w oryginale PDF.",
+        "",
+    ),
+}
+"""Opis grupy prostym językiem; drugi tekst dochodzi przy net-meteringu."""
+
+
+def group_text(group: CostGroup, net_metering: bool) -> str:
+    """Opis Grupy kosztów prostym językiem, z dopiskiem o Magazynie energii przy net-meteringu."""
+    base, with_pv = GROUP_TEXTS[group]
+    return base + (with_pv if net_metering else "")

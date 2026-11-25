@@ -7,15 +7,10 @@ from pv_app.domain.metering_point import MeteringPoint
 from pv_app.domain.view_period import ViewPeriodKind, month_label
 from pv_app.features import formatting as fmt
 from pv_app.features.base import FeatureContext
+from pv_app.features.monthly import PeriodTotals, YearOverYear, monthly_chart, year_over_year
+from pv_app.features.monthly_figure import BLOCK_NOTE, FORECAST_NOTE, energy_figure
 from pv_app.features.navigation import open_invoice
-from pv_app.features.overview.analysis import (
-    PeriodTotals,
-    YearOverYear,
-    energy_chart,
-    forecast_chart,
-    year_over_year,
-)
-from pv_app.features.overview.chart import BLOCK_NOTE, FORECAST_NOTE, energy_figure
+from pv_app.features.overview.analysis import forecast_chart
 from pv_app.features.overview.top import render_top
 from pv_app.features.terms import FORECAST_HELP
 
@@ -45,7 +40,7 @@ class OverviewFeature:
 
     def render(self, context: FeatureContext) -> None:
         point = context.metering_point
-        chart = energy_chart(context.repository, context.filters)
+        chart = monthly_chart(context.repository, context.filters)
         if chart is None:
             st.info("Brak Faktur dla tego punktu poboru.")
             return

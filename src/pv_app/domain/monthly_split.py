@@ -1,16 +1,18 @@
 """Rozkład Faktury na miesiące kalendarzowe.
 
-kWh i Składniki zmienne proporcjonalnie do dni, Składniki stałe po równo na miesiące okresu.
+kWh i Składniki zmienne proporcjonalnie do dni, Składniki stałe po równo na miesiące okresu;
+tak samo każda Grupa kosztów.
 Reszta Kosztu okresu (zaokrąglenia VAT, Bonifikaty) proporcjonalnie do dni. Części są
 zaokrąglone (kWh do 0,001, zł do 0,01), a ostatni miesiąc dostaje resztę, więc suma
 części równa się wartości z Faktury.
 """
 
-from collections.abc import Sequence
-from dataclasses import dataclass
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 
+from pv_app.domain.cost_groups import CostGroup, group_totals
 from pv_app.domain.invoice import Invoice
 from pv_app.domain.view_period import first_day, last_day, month_index
 
@@ -37,6 +39,9 @@ class MonthShare:
     invoice_number: str
     whole_invoice: bool
     """Faktura rozlicza tylko ten miesiąc (wartości dokładne, nie z rozkładu)."""
+    cost_groups: Mapping[CostGroup, Decimal] = field(default_factory=dict)
+    """Część każdej Grupy kosztów: grupy Składników zmiennych (i Pozycje nierozpoznane) po
+    dniach, Opłata mocowa i Opłaty stałe po równo na miesiące."""
 
 
 def _split(total: Decimal, weights: Sequence[int], step: Decimal) -> list[Decimal]:
@@ -77,6 +82,10 @@ def split_into_months(invoice: Invoice, period_cost: Decimal) -> list[MonthShare
     variable_parts = _split(variable, days, _ZL)
     fixed_parts = _split(fixed, [1] * len(days), _ZL)
     rest_parts = _split(rest, days, _ZL)
+    group_parts = {
+        group: _split(total, days if group.split_by_days else [1] * len(days), _ZL)
+        for group, total in group_totals(invoice).items()
+    }
     return [
         MonthShare(
             month=index,
@@ -88,6 +97,7 @@ def split_into_months(invoice: Invoice, period_cost: Decimal) -> list[MonthShare
             period_cost=variable_parts[i] + fixed_parts[i] + rest_parts[i],
             invoice_number=invoice.number,
             whole_invoice=len(months) == 1,
+            cost_groups={group: parts[i] for group, parts in group_parts.items()},
         )
         for i, (index, d) in enumerate(months)
     ]

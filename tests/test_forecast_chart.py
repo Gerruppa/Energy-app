@@ -8,7 +8,8 @@ from factories import HOME, forecast, invoice_for
 from pv_app.domain.invoice import DateRange, Invoice
 from pv_app.domain.view_period import ViewPeriod, month_index
 from pv_app.features.base import Filters
-from pv_app.features.overview.analysis import forecast_chart, year_over_year
+from pv_app.features.monthly import year_over_year
+from pv_app.features.overview.analysis import forecast_chart
 from pv_app.storage.in_memory import InMemoryRepository
 
 

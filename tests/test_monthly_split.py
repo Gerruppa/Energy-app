@@ -4,6 +4,7 @@ from datetime import date
 from decimal import Decimal
 
 from factories import invoice_for
+from pv_app.domain.cost_groups import CostGroup
 from pv_app.domain.invoice import DateRange
 from pv_app.domain.monthly_split import MonthShare, split_into_months
 from pv_app.domain.view_period import month_index
@@ -93,5 +94,35 @@ def test_monthly_invoice_is_one_share_with_invoice_values() -> None:
             period_cost=Decimal("32.04"),
             invoice_number=invoice.number,
             whole_invoice=True,
+            cost_groups={
+                CostGroup.ENERGY: Decimal("0"),
+                CostGroup.VARIABLE_DISTRIBUTION: Decimal("2"),
+                CostGroup.PER_KWH_FEES: Decimal("0"),
+                CostGroup.CAPACITY: Decimal("30"),
+                CostGroup.FIXED_FEES: Decimal("0"),
+            },
         )
+    ]
+
+
+def test_cost_groups_split_like_their_components_and_add_up_to_invoice() -> None:
+    # 20.01–9.03.2026: 12 + 28 + 9 = 49 dni.
+    invoice = invoice_for(
+        DateRange(date(2026, 1, 20), date(2026, 3, 9)),
+        imported="490",
+        variable_gross="98",
+        fixed_gross="30",
+    )
+
+    shares = split_into_months(invoice, period_cost=Decimal("128"))
+
+    assert [s.cost_groups[CostGroup.VARIABLE_DISTRIBUTION] for s in shares] == [
+        Decimal("24"),
+        Decimal("56"),
+        Decimal("18"),
+    ]
+    assert [s.cost_groups[CostGroup.CAPACITY] for s in shares] == [
+        Decimal("10"),
+        Decimal("10"),
+        Decimal("10"),
     ]

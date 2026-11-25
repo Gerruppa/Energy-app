@@ -6,10 +6,11 @@ from decimal import Decimal
 from pathlib import Path
 
 from factories import invoice_for
+from pv_app.domain.cost_groups import CostGroup
 from pv_app.domain.debit_note import DebitNote
 from pv_app.domain.invoice import DateRange, DocumentKind, Invoice, Source
 from pv_app.domain.view_period import ViewPeriod
-from pv_app.features.invoice_view.analysis import CostGroup, invoice_sheet
+from pv_app.features.invoice_view.analysis import invoice_sheet
 from pv_app.ingest import import_document
 from pv_app.ingest.raw import RawDocument
 from pv_app.storage.in_memory import InMemoryRepository

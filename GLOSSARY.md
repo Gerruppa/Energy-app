@@ -133,6 +133,12 @@ _Avoid_: do zapłaty, rachunek (to kwestie Salda, nie kosztu)
 **Cena średnia kWh**:
 Koszt okresu podzielony przez Energię pobraną w tym Okresie rozliczeniowym.
 
+**Cena jednostkowa**:
+Cena netto jednej jednostki Pozycji faktury (zł za kWh albo zł za miesiąc), tak jak na Fakturze. Faktura może mieć kilka podokresów z różnymi cenami tego samego składnika; nie podaje ich dat.
+
+**Akcyza**:
+Podatek od energii zawarty w cenach Pozycji faktury; Faktura podaje go tylko informacyjnie, więc nie dolicza się go do Kosztu okresu.
+
 **Cena krańcowa kWh**:
 Koszt brutto jednej dodatkowej kWh Energii pobranej w danym PPE i Okresie rozliczeniowym: suma Składników zmiennych na kWh, bez Składników stałych.
 _Avoid_: cena prądu (bez doprecyzowania)

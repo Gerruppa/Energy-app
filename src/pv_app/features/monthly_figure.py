@@ -1,9 +1,10 @@
-"""Wykres miesiąc po miesiącu (Plotly) z wyniku ``energy_chart``.
+"""Wykres miesiąc po miesiącu (Plotly) z wyniku ``monthly_chart``.
 
 Miesiąc z własną Fakturą to słupek. Faktura za kilka miesięcy to jeden płaski blok przez cały
 Okres rozliczeniowy na wysokości średniej miesięcznej: Faktura podaje tylko sumę, więc wykres
 nie udaje, że zna podział na miesiące. Rok wcześniej to przerywany kontur tych samych Faktur
-przesuniętych o 12 miesięcy. Oddane do sieci w górę, pobrane z sieci w dół, wspólna skala.
+przesuniętych o 12 miesięcy. Wykres energii: oddane do sieci w górę, pobrane z sieci w dół,
+wspólna skala. Wykres kosztu: Koszt okresu w zł, z tych samych bloków.
 """
 
 import math
@@ -14,10 +15,11 @@ from decimal import Decimal
 
 import plotly.graph_objects as go
 
-from pv_app.domain.formatting import kwh
+from pv_app.domain.formatting import kwh, zl
+from pv_app.domain.invoice import Source
 from pv_app.domain.view_period import first_day, last_day, month_index, month_label
 from pv_app.features import formatting as fmt
-from pv_app.features.overview.analysis import ChartBlock, EnergyChart, ForecastLine
+from pv_app.features.monthly import ChartBlock, ForecastLine, MonthlyChart
 
 SUN = "#e8a10c"
 NET = "#2f5d8a"
@@ -25,14 +27,19 @@ INK = "#44505c"
 FORECAST_INK = "#7a8691"
 """Szary widoczny w jasnym i ciemnym motywie (kontrast ≥ 3:1 dla linii)."""
 CRITICAL = "#c93c2e"
+MONEY = "#5b7083"
+"""Kolor Kosztu okresu: łupkowy jak „pieniądze” w prototypie, czytelny w obu motywach."""
 BLOCK_NOTE = (
     "Faktura podaje tylko sumę za cały okres, więc to średnia. Podział na miesiące da eLicznik."
 )
+COST_BLOCK_NOTE = "Faktura podaje tylko sumę za cały okres, więc to średnia na miesiąc."
 FORECAST_NOTE = (
     "Prognoza to zaliczka wyliczona przez Tauron. Gdy jest wyższa niż to, co naprawdę "
     "pobraliście z sieci, rośnie nadpłata; gdy niższa, przy rozliczeniu dochodzi niedopłata. "
     "Prognozy nie wchodzą do Kosztu okresu ani kWh."
 )
+MIN_LABELLED_DAYS = 55
+"""Napis „≈ X / mies.” od Faktury za dwa miesiące; węższy blok nie mieści napisu."""
 SHORT_MONTHS = ("sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru")
 
 
@@ -43,6 +50,8 @@ class _Field:
     sign: int
     total: Callable[[ChartBlock], Decimal | None]
     per_month: Callable[[ChartBlock], Decimal | None]
+    show: Callable[[Decimal], str] = kwh
+    source: Callable[[ChartBlock], Source] = lambda b: b.source
 
 
 EXPORTED = _Field(
@@ -50,6 +59,15 @@ EXPORTED = _Field(
 )
 IMPORTED = _Field(
     "Pobrane z sieci", NET, -1, lambda b: b.imported_kwh, lambda b: b.imported_per_month
+)
+COST = _Field(
+    "Koszt okresu",
+    MONEY,
+    1,
+    lambda b: b.period_cost,
+    lambda b: b.cost_per_month,
+    show=zl,
+    source=lambda b: b.cost_source,
 )
 
 
@@ -68,7 +86,7 @@ def nice_scale(top: float, ticks: int = 4) -> float:
     return next(m * power for m in (1, 2, 5, 10) if m * power >= raw - 1e-9)
 
 
-def _hover(block: ChartBlock, fields: list[_Field], earlier: bool) -> str:
+def _hover(block: ChartBlock, fields: list[_Field], earlier: bool, note: str) -> str:
     period = fmt.period(block.period)
     head = (
         f"{month_label(month_index(block.period.start))} (własna Faktura)"
@@ -81,12 +99,14 @@ def _hover(block: ChartBlock, fields: list[_Field], earlier: bool) -> str:
         if total is None or average is None:
             continue
         if block.single_month:
-            lines.append(f"{field.label}: {kwh(total)}")
+            lines.append(f"{field.label}: {field.show(total)}")
         else:
-            lines.append(f"{field.label}: {kwh(total)} łącznie, ≈ {kwh(average)} na miesiąc")
+            lines.append(
+                f"{field.label}: {field.show(total)} łącznie, ≈ {field.show(average)} na miesiąc"
+            )
     if not block.single_month:
-        lines.append(BLOCK_NOTE)
-    lines.append(f"Źródło: {fmt.source(block.source)}")
+        lines.append(note)
+    lines.append(f"Źródło: {fmt.source(fields[0].source(block))}")
     return "<br>".join(lines)
 
 
@@ -108,7 +128,7 @@ def _forecast_hover(line: ForecastLine) -> str:
 
 
 def energy_figure(
-    chart: EnergyChart,
+    chart: MonthlyChart,
     net_metering: bool,
     compare: bool,
     forecasts: tuple[ForecastLine, ...] = (),
@@ -117,6 +137,22 @@ def energy_figure(
     Prognoz Taurona obok Faktur."""
     # Bez fotowoltaiki pobrane rysujemy w górę: nie ma czego pokazać nad osią.
     fields = [EXPORTED, IMPORTED] if net_metering else [replace(IMPORTED, sign=1)]
+    return _figure(chart, fields, compare, forecasts, "kWh na miesiąc", BLOCK_NOTE)
+
+
+def cost_figure(chart: MonthlyChart, compare: bool) -> go.Figure:
+    """Koszt miesięcznie: Koszt okresu słupkiem albo płaskim blokiem ze średnią miesięczną."""
+    return _figure(chart, [COST], compare, (), "zł na miesiąc", COST_BLOCK_NOTE)
+
+
+def _figure(
+    chart: MonthlyChart,
+    fields: list[_Field],
+    compare: bool,
+    forecasts: tuple[ForecastLine, ...],
+    axis_title: str,
+    note: str,
+) -> go.Figure:
     figure = go.Figure()
     window_start, window_end = _start(first_day(chart.months[0])), _end(last_day(chart.months[-1]))
     figure.add_vrect(
@@ -154,7 +190,7 @@ def energy_figure(
             y = field.sign * float(value)
             start, end = _start(block.drawn.start), _end(block.drawn.end)
             span = (end - start).total_seconds() * 1000
-            hover = _hover(block, fields, earlier=False)
+            hover = _hover(block, fields, earlier=False, note=note)
             if block.single_month:
                 figure.add_bar(
                     x=[start + (end - start) / 2],
@@ -184,11 +220,11 @@ def energy_figure(
                 hoverinfo="skip",
                 showlegend=False,
             )
-            if (end - start).days >= 80:
+            if (end - start).days >= MIN_LABELLED_DAYS:
                 figure.add_annotation(
                     x=start + (end - start) / 2,
                     y=y,
-                    text=f"≈ {kwh(Decimal(abs(y)))} / mies.",
+                    text=f"≈ {field.show(Decimal(abs(y)))} / mies.",
                     showarrow=False,
                     yshift=-12 * field.sign,
                     font={"size": 11, "color": INK},
@@ -209,7 +245,7 @@ def energy_figure(
                 y=[0, y, y, 0, 0],
                 mode="lines",
                 line={"color": INK, "width": 1, "dash": "dash"},
-                hovertext=_hover(block, fields, earlier=True),
+                hovertext=_hover(block, fields, earlier=True, note=note),
                 hoverinfo="text",
                 hoveron="fills+points",
                 **legend("rok wcześniej"),
@@ -250,7 +286,7 @@ def energy_figure(
         legend={"orientation": "h", "y": 1.12, "x": 0},
         hovermode="closest",
         yaxis={
-            "title": {"text": "kWh na miesiąc"},
+            "title": {"text": axis_title},
             "range": [-bottom * 1.05, top * 1.05],
             "tickvals": ticks,
             "ticktext": [fmt.decimal_pl(Decimal(str(abs(round(v, 6))))) for v in ticks],

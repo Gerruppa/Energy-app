@@ -3,45 +3,14 @@
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
-from enum import StrEnum
 
+from pv_app.domain.cost_groups import CostGroup, cost_group
 from pv_app.domain.debit_note import DebitNote
-from pv_app.domain.invoice import DateRange, Invoice, InvoiceLine, LineComponent, Source
+from pv_app.domain.invoice import DateRange, Invoice, InvoiceLine, Source
 from pv_app.domain.monthly_split import split_into_months
 from pv_app.domain.period_cost import PeriodCosts
 from pv_app.domain.view_period import ViewPeriod, ViewPeriodKind, first_day, last_day
 from pv_app.storage.repository import Repository, SourceFile
-
-
-class CostGroup(StrEnum):
-    """Grupa kosztów: Pozycje faktury zebrane tak, jak opisuje je „Faktura po ludzku”."""
-
-    ENERGY = "Energia"
-    VARIABLE_DISTRIBUTION = "Dystrybucja zmienna"
-    PER_KWH_FEES = "Opłaty od kWh"
-    CAPACITY = "Opłata mocowa"
-    FIXED_FEES = "Opłaty stałe"
-    UNRECOGNIZED = "Pozycje nierozpoznane"
-    """Tylko gdy import nie rozpoznał nazwy którejś Pozycji faktury."""
-
-
-_GROUP_OF_COMPONENT = {
-    LineComponent.ACTIVE_ENERGY: CostGroup.ENERGY,
-    LineComponent.VARIABLE_NETWORK: CostGroup.VARIABLE_DISTRIBUTION,
-    LineComponent.QUALITY: CostGroup.VARIABLE_DISTRIBUTION,
-    LineComponent.OZE: CostGroup.PER_KWH_FEES,
-    LineComponent.COGENERATION: CostGroup.PER_KWH_FEES,
-    LineComponent.CAPACITY: CostGroup.CAPACITY,
-    LineComponent.FIXED_NETWORK: CostGroup.FIXED_FEES,
-    LineComponent.TRANSITIONAL: CostGroup.FIXED_FEES,
-    LineComponent.SUBSCRIPTION: CostGroup.FIXED_FEES,
-}
-
-
-def cost_group(line: InvoiceLine) -> CostGroup:
-    if line.component is None:
-        return CostGroup.UNRECOGNIZED
-    return _GROUP_OF_COMPONENT[line.component]
 
 
 @dataclass(frozen=True)

@@ -8,7 +8,7 @@ from factories import HOME, invoice_for
 from pv_app.domain.invoice import Amount, Correction, DateRange, DocumentKind, Invoice, Source
 from pv_app.domain.view_period import ViewPeriod, month_index
 from pv_app.features.base import Filters
-from pv_app.features.overview.analysis import ChartBlock, InvoiceRef, energy_chart, year_over_year
+from pv_app.features.monthly import ChartBlock, InvoiceRef, monthly_chart, year_over_year
 from pv_app.storage.in_memory import InMemoryRepository
 
 
@@ -169,7 +169,7 @@ def test_chart_shows_twelve_months_up_to_viewed_month_with_blocks_and_year_earli
         invoice_for(YEAR_2025, "3650", "7300", number="R/25"),
     )
 
-    chart = energy_chart(repository, view("2026-10"))
+    chart = monthly_chart(repository, view("2026-10"))
 
     assert chart is not None
     assert chart.months == tuple(range(month(2025, 11), month(2026, 10) + 1))
@@ -198,6 +198,9 @@ def test_chart_shows_twelve_months_up_to_viewed_month_with_blocks_and_year_earli
             exported_per_month=Decimal("608.8"),
             single_month=False,
             source=Source("R/25", 4),
+            period_cost=Decimal("0"),
+            cost_per_month=Decimal("0"),
+            cost_source=Source("R/25", 3),
         ),
     )
     # Między Fakturą R/25 (do XI 2025) a M/10/26 nie ma Faktur.
@@ -210,7 +213,7 @@ def test_chart_marks_gaps_only_between_first_and_last_invoice() -> None:
         invoice_for(DateRange(date(2026, 6, 1), date(2026, 6, 30)), "100", "100"),
     )
 
-    chart = energy_chart(repository, view("2026"))
+    chart = monthly_chart(repository, view("2026"))
 
     assert chart is not None
     assert chart.selected == chart.months == tuple(range(month(2026, 1), month(2026, 12) + 1))
@@ -223,7 +226,7 @@ def test_whole_period_chart_spans_all_invoices() -> None:
         invoice_for(DateRange(date(2026, 6, 1), date(2026, 6, 30)), "100"),
     )
 
-    chart = energy_chart(repository, view("caly"))
+    chart = monthly_chart(repository, view("caly"))
 
     assert chart is not None
     assert chart.months == tuple(range(month(2025, 3), month(2026, 6) + 1))
@@ -231,4 +234,4 @@ def test_whole_period_chart_spans_all_invoices() -> None:
 
 
 def test_no_chart_without_invoices() -> None:
-    assert energy_chart(InMemoryRepository(), view("2026-10")) is None
+    assert monthly_chart(InMemoryRepository(), view("2026-10")) is None

@@ -5,11 +5,14 @@ from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
+from factories import HOME, invoice_for
+from pv_app.domain.cost_groups import CostGroup
 from pv_app.domain.debit_note import DebitNote
 from pv_app.domain.invoice import (
     DateRange,
     DocumentKind,
     Invoice,
+    LineComponent,
     ReadingType,
     SettlementBasis,
     Source,
@@ -19,9 +22,12 @@ from pv_app.features.base import Filters
 from pv_app.features.costs.analysis import (
     DebitNoteListRow,
     InvoiceListRow,
+    cost_summary,
     debit_note_list,
     invoice_list,
+    unit_price_history,
 )
+from pv_app.features.monthly import monthly_chart
 from pv_app.ingest import import_document
 from pv_app.ingest.raw import RawDocument
 from pv_app.storage.in_memory import InMemoryRepository
@@ -197,3 +203,215 @@ def test_lists_only_invoices_and_notes_overlapping_view_period() -> None:
     # dotyczy tej samej Faktury, więc też zostaje.
     assert [r.number for r in rows] == ["E/TM3/BN000002/0002/26"]
     assert [n.number for n in notes] == ["TM3NBN000002/001"]
+
+
+# Koszt okresu w Okresie widoku: z rozkładu Faktur na miesiące, jak w Przeglądzie.
+
+OCTOBER_2026 = DateRange(date(2026, 10, 1), date(2026, 10, 31))
+# 1.12.2024 – 30.11.2025: 365 dni, z tego 31 w październiku 2025.
+YEAR_2025 = DateRange(date(2024, 12, 1), date(2025, 11, 30))
+
+
+def view(query: str) -> Filters:
+    period = ViewPeriod.from_query(query)
+    assert period is not None
+    return Filters(HOME, period)
+
+
+def repository_with(*invoices: Invoice) -> InMemoryRepository:
+    repository = InMemoryRepository()
+    for invoice in invoices:
+        repository.add_invoice(invoice)
+    return repository
+
+
+def test_period_cost_and_average_price_compared_with_year_earlier() -> None:
+    repository = repository_with(
+        invoice_for(OCTOBER_2026, "200", "300", variable_gross="20", fixed_gross="30"),
+        invoice_for(YEAR_2025, "3650", "7300", variable_gross="3650"),
+    )
+
+    summary = cost_summary(repository, view("2026-10"))
+
+    assert summary is not None
+    assert summary.current.period_cost == Decimal("50")
+    # Cena średnia kWh = Koszt okresu ÷ Energia pobrana, nie wartość z Faktury.
+    assert summary.current.average_price == Decimal("0.25")
+    assert not summary.current.approximate
+    assert summary.year_earlier is not None
+    # Październik 2025 z Faktury rocznej: 31/365 kWh i Składników zmiennych.
+    assert summary.year_earlier.period_cost == Decimal("310")
+    assert summary.year_earlier.average_price == Decimal("1")
+    assert summary.year_earlier.approximate
+
+
+def test_whole_period_has_no_year_earlier_and_no_invoices_means_no_summary() -> None:
+    repository = repository_with(
+        invoice_for(OCTOBER_2026, "200", "300", variable_gross="20", fixed_gross="30"),
+    )
+
+    summary = cost_summary(repository, whole(HOME))
+
+    assert summary is not None
+    assert summary.current.period_cost == Decimal("50")
+    assert summary.year_earlier is None
+    assert cost_summary(InMemoryRepository(), whole(HOME)) is None
+
+
+def test_cost_groups_of_view_period_cut_from_longer_invoice_like_monthly_split() -> None:
+    repository = repository_with(
+        invoice_for(YEAR_2025, "3650", "7300", variable_gross="3650", fixed_gross="120"),
+    )
+
+    summary = cost_summary(repository, view("2025-10"))
+
+    assert summary is not None
+    # Dystrybucja zmienna po dniach (31/365), Opłata mocowa po równo na 12 miesięcy.
+    assert summary.current.cost_groups == {
+        CostGroup.ENERGY: Decimal("0"),
+        CostGroup.VARIABLE_DISTRIBUTION: Decimal("310"),
+        CostGroup.PER_KWH_FEES: Decimal("0"),
+        CostGroup.CAPACITY: Decimal("10"),
+        CostGroup.FIXED_FEES: Decimal("0"),
+    }
+    assert summary.current.discounts == Decimal("0")
+    assert summary.current.period_cost == Decimal("320")
+
+
+def test_discounts_from_debit_notes_close_cost_groups_to_period_cost() -> None:
+    # Data sprzedaży Noty (1.02.2026) leży w Okresie rozliczeniowym Faktury za luty.
+    repository = repository_with(
+        invoice_for(
+            DateRange(date(2026, 2, 1), date(2026, 2, 28)),
+            "100",
+            variable_gross="20",
+            fixed_gross="30",
+        )
+    )
+    repository.add_debit_note(replace(fixture_debit_note(), ppe_number=HOME))
+
+    summary = cost_summary(repository, view("2026-02"))
+
+    assert summary is not None
+    totals = summary.current
+    assert totals.period_cost == Decimal("2.30")
+    assert totals.discounts == Decimal("-47.70")
+    assert sum(totals.cost_groups.values()) + totals.discounts == totals.period_cost
+
+
+def with_excise(invoice: Invoice, amount: str) -> Invoice:
+    return replace(invoice, summary=replace(invoice.summary, excise_amount=Decimal(amount)))
+
+
+def test_excise_is_shown_for_information_and_not_added_to_period_cost() -> None:
+    repository = repository_with(
+        with_excise(invoice_for(YEAR_2025, "3650", "7300", variable_gross="3650"), "36.50"),
+        with_excise(
+            invoice_for(OCTOBER_2026, "200", "300", variable_gross="20", fixed_gross="30"), "1.20"
+        ),
+    )
+
+    october_2026 = cost_summary(repository, view("2026-10"))
+    october_2025 = cost_summary(repository, view("2025-10"))
+
+    assert october_2026 is not None and october_2025 is not None
+    assert october_2026.excise == Decimal("1.20")
+    assert october_2026.current.period_cost == Decimal("50")
+    # Część Faktury rocznej po dniach: 31/365.
+    assert october_2025.excise == Decimal("3.10")
+
+
+def test_cost_chart_draws_invoice_for_several_months_as_flat_monthly_average() -> None:
+    repository = repository_with(
+        invoice_for(YEAR_2025, "3650", "7300", number="R/25", variable_gross="365"),
+        invoice_for(OCTOBER_2026, "200", "300", number="M/10/26", fixed_gross="30"),
+    )
+
+    chart = monthly_chart(repository, view("2026-10"))
+
+    assert chart is not None
+    by_number = {b.invoice_number: b for b in chart.blocks}
+    # Faktura roczna: 365 zł / 365 dni × 30,44 = 30,44 zł na miesiąc, przez cały okres.
+    assert (by_number["R/25"].period_cost, by_number["R/25"].cost_per_month) == (
+        Decimal("365"),
+        Decimal("30.44"),
+    )
+    assert by_number["R/25"].cost_source == Source("R/25", 3)
+    # Miesiąc z własną Fakturą: słupek z Kosztem okresu.
+    assert (by_number["M/10/26"].cost_per_month, by_number["M/10/26"].single_month) == (
+        Decimal("30"),
+        True,
+    )
+    # Kontur roku wcześniej: te same Faktury przesunięte o 12 miesięcy.
+    (earlier,) = chart.year_earlier
+    assert (earlier.invoice_number, earlier.drawn) == (
+        "R/25",
+        DateRange(date(2025, 12, 1), date(2026, 11, 30)),
+    )
+
+
+def priced(invoice: Invoice, *prices: tuple[LineComponent, str, str, int]) -> Invoice:
+    """Faktura z Pozycjami (składnik, jednostka, cena netto, podokres) zamiast własnych."""
+    template = invoice.lines[0]
+    return replace(
+        invoice,
+        lines=tuple(
+            replace(
+                template,
+                component=component,
+                unit=unit,
+                unit_price_net=Decimal(price),
+                sub_period=sub_period,
+                source=Source(invoice.number, 2),
+            )
+            for component, unit, price, sub_period in prices
+        ),
+    )
+
+
+SEPTEMBER_2026 = DateRange(date(2026, 9, 1), date(2026, 9, 30))
+
+
+def test_unit_price_history_per_component_with_price_changes_inside_invoice() -> None:
+    repository = repository_with(
+        priced(
+            invoice_for(SEPTEMBER_2026, "100", number="M/09/26"),
+            (LineComponent.ACTIVE_ENERGY, "kWh", "0.5", 1),
+            (LineComponent.CAPACITY, "mc", "10", 1),
+        ),
+        priced(
+            invoice_for(OCTOBER_2026, "100", number="M/10/26"),
+            (LineComponent.ACTIVE_ENERGY, "kWh", "0.5", 1),
+            (LineComponent.ACTIVE_ENERGY, "kWh", "0.6", 2),
+            (LineComponent.CAPACITY, "mc", "12", 1),
+        ),
+    )
+
+    history = unit_price_history(repository, whole(HOME))
+
+    energy = next(s for s in history if s.component is LineComponent.ACTIVE_ENERGY)
+    assert energy.unit == "kWh"
+    assert [
+        (p.invoice_number, p.sub_period, p.sub_periods, p.price_net) for p in energy.prices
+    ] == [
+        ("M/09/26", 1, 1, Decimal("0.5")),
+        ("M/10/26", 1, 2, Decimal("0.5")),
+        ("M/10/26", 2, 2, Decimal("0.6")),
+    ]
+    assert energy.prices[0].source == Source("M/09/26", 2)
+    capacity = next(s for s in history if s.component is LineComponent.CAPACITY)
+    assert (capacity.unit, [p.price_net for p in capacity.prices]) == (
+        "mc",
+        [Decimal("10"), Decimal("12")],
+    )
+
+
+def test_invoice_list_row_has_average_price_from_period_cost_and_imported_energy() -> None:
+    repository = repository_with(
+        invoice_for(OCTOBER_2026, "200", "300", variable_gross="20", fixed_gross="30"),
+        invoice_for(SEPTEMBER_2026, "0", "300", fixed_gross="30"),
+    )
+
+    rows = invoice_list(repository, whole(HOME))
+
+    assert [row.average_price for row in rows] == [Decimal("0.25"), None]

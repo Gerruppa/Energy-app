@@ -74,8 +74,10 @@ def test_costs_tab_lists_invoices_of_the_metering_point(app: AppTest) -> None:
     assert [t.label for t in app.tabs] == ["Przegląd", "Magazyn energii", "Koszty i Faktury"]
     table = app.tabs[2].dataframe[0].value
     assert list(table["Okres"]) == ["01.10.2026 – 31.10.2026"]
-    assert list(table["Podstawa rozliczenia"]) == ["🟢 odczyt rzeczywisty"]
+    # Podstawę rozliczenia oznaczamy tylko przy wyjątkach (odczyt szacunkowy).
+    assert "Podstawa rozliczenia" not in table.columns
     assert list(table["Koszt okresu"]) == ["32,04 zł"]
+    assert list(table["Cena średnia kWh"]) == ["0,21 zł"]
     assert "Faktura rozliczeniowa" in table["Dokument"][0]
 
 
