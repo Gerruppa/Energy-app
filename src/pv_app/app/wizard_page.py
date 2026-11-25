@@ -14,11 +14,11 @@ from pv_app.app.batch_import import (
 )
 from pv_app.app.import_page import (
     ADDED_METERING_POINT,
+    EXISTING_METERING_POINT,
     IMPORT_SUMMARY,
     IMPORTING,
     NEW_METERING_POINT,
 )
-from pv_app.app.wizard import MeteringPointAlreadyExists
 from pv_app.domain.invoice import Invoice, SettlementType
 from pv_app.domain.metering_point import SiteIcon
 from pv_app.features import formatting as fmt
@@ -124,24 +124,26 @@ def render_naming_step(
     if not name.strip():
         st.error("Podaj nazwę punktu poboru.")
         return
-    try:
-        point, continuation = add_new_metering_point(
-            repository, archive, new_point, name=name, icon=icon, charges_car=charges_car
-        )
-    except MeteringPointAlreadyExists:
-        st.error("Ten punkt poboru jest już w aplikacji.")
-        return
+    # PPE, który już jest w aplikacji (podwójne kliknięcie, dodany w międzyczasie), dostaje
+    # czekające Faktury bez zmiany ustawień, a kreator wraca do podsumowania.
+    added = add_new_metering_point(
+        repository, archive, new_point, name=name, icon=icon, charges_car=charges_car
+    )
+    point = added.point
     st.session_state.pop(NEW_METERING_POINT, None)
     st.session_state.pop(_WIZARD_UPLOAD, None)
+    if added.already_existed:
+        st.session_state[EXISTING_METERING_POINT] = point.name
     summary = st.session_state.get(IMPORT_SUMMARY)
     if summary is not None:
-        st.session_state[IMPORT_SUMMARY] = summary.after_adding(new_point, continuation)
+        st.session_state[IMPORT_SUMMARY] = summary.after_adding(new_point, added.summary)
     if not st.session_state.get(IMPORTING):
         # Kreator z ekranu powitalnego albo paska bocznego kończy się na stronie „Wgraj
         # pliki”, żeby od razu wgrać pozostałe Faktury nowego PPE.
         st.session_state.pop(ADDING_METERING_POINT, None)
         st.session_state.pop(IMPORT_SUMMARY, None)
         st.session_state[IMPORTING] = True
-        st.session_state[ADDED_METERING_POINT] = point.name
+        if not added.already_existed:
+            st.session_state[ADDED_METERING_POINT] = point.name
         st.query_params["ppe"] = point.slug
     st.rerun()

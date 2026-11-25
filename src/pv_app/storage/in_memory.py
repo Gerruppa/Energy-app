@@ -42,8 +42,10 @@ class InMemoryRepository:
             del self._source_files[source_file.sha256]
         return deleted
 
-    def add_invoice(self, invoice: Invoice) -> None:
+    def add_invoice(self, invoice: Invoice, *, source_file: SourceFile | None = None) -> None:
         self._invoices.append(invoice)
+        if source_file is not None:
+            self.add_source_file(source_file)
 
     def has_invoice(self, number: str) -> bool:
         return any(i.number == number for i in self._invoices)
@@ -61,8 +63,10 @@ class InMemoryRepository:
             del self._source_files[source_file.sha256]
         return source_file
 
-    def add_debit_note(self, note: DebitNote) -> None:
+    def add_debit_note(self, note: DebitNote, *, source_file: SourceFile | None = None) -> None:
         self._debit_notes.append(note)
+        if source_file is not None:
+            self.add_source_file(source_file)
 
     def has_debit_note(self, number: str) -> bool:
         return any(n.number == number for n in self._debit_notes)
@@ -88,10 +92,14 @@ class InMemoryRepository:
             None,
         )
 
-    def add_hourly_readings(self, readings: Iterable[HourlyReading]) -> int:
+    def add_hourly_readings(
+        self, readings: Iterable[HourlyReading], *, source_file: SourceFile | None = None
+    ) -> int:
         before = len(self._hourly_readings)
         for reading in readings:
             self._hourly_readings[reading.key] = reading
+        if source_file is not None:
+            self.add_source_file(source_file)
         return len(self._hourly_readings) - before
 
     def list_hourly_readings(self, ppe_number: str) -> list[HourlyReading]:

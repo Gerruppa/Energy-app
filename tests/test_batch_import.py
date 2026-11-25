@@ -170,9 +170,10 @@ def test_adding_the_new_metering_point_continues_its_import(
         repository, archive, [first, second], read=read_fixture
     ).new_metering_points
 
-    point, summary = add_new_metering_point(
+    added = add_new_metering_point(
         repository, archive, new_point, name="Mieszkanie", icon=SiteIcon.FLAT, charges_car=False
     )
+    point, summary = added.point, added.summary
 
     assert point.ppe_number == FLAT_PPE
     assert point.slug == "mieszkanie"
@@ -184,6 +185,56 @@ def test_adding_the_new_metering_point_continues_its_import(
     ]
     for imported in summary.imported:
         assert archive.path(imported.archive_name).exists()
+
+
+def test_adding_a_metering_point_that_already_exists_imports_its_invoices_into_it(
+    repository: InMemoryRepository, archive: FileArchive
+) -> None:
+    [new_point] = import_files(
+        repository, archive, [upload(HALF_YEAR, "mieszkanie.pdf")], read=read_fixture
+    ).new_metering_points
+    first = add_new_metering_point(
+        repository, archive, new_point, name="Mieszkanie", icon=SiteIcon.FLAT, charges_car=False
+    )
+
+    again = add_new_metering_point(
+        repository, archive, new_point, name="Inna nazwa", icon=SiteIcon.HOUSE, charges_car=True
+    )
+
+    assert not first.already_existed
+    assert again.already_existed
+    assert again.point == first.point
+    assert repository.list_metering_points() == [HOME, first.point]
+    assert [d.file_name for d in again.summary.duplicates] == ["mieszkanie.pdf"]
+    assert [i.number for i in repository.list_invoices(FLAT_PPE)] == ["E/TM3/BN000002/0002/26"]
+
+
+def test_invoices_waiting_for_a_metering_point_added_meanwhile_are_imported_into_it(
+    repository: InMemoryRepository, archive: FileArchive
+) -> None:
+    [new_point] = import_files(
+        repository, archive, [upload(HALF_YEAR, "mieszkanie.pdf")], read=read_fixture
+    ).new_metering_points
+    flat = MeteringPoint(
+        ppe_number=FLAT_PPE,
+        name="Mieszkanie",
+        slug="mieszkanie",
+        icon=SiteIcon.FLAT,
+        charges_car=False,
+        address="UL. PRZYKŁADOWA 2/3, 00-002 TESTOWO",
+        net_metering=False,
+    )
+    repository.add_metering_point(flat)
+
+    added = add_new_metering_point(
+        repository, archive, new_point, name="Inna nazwa", icon=SiteIcon.HOUSE, charges_car=True
+    )
+
+    assert added.already_existed
+    assert added.point == flat
+    assert repository.list_metering_points() == [HOME, flat]
+    assert [f.file_name for f in added.summary.imported] == ["mieszkanie.pdf"]
+    assert [i.number for i in repository.list_invoices(FLAT_PPE)] == ["E/TM3/BN000002/0002/26"]
 
 
 def test_duplicate_of_a_waiting_invoice_is_skipped_in_the_same_batch(
@@ -198,6 +249,56 @@ def test_duplicate_of_a_waiting_invoice_is_skipped_in_the_same_batch(
     assert [d.file_name for d in summary.duplicates] == ["mieszkanie (1).pdf"]
 
 
+def test_next_batch_adds_its_invoices_to_those_already_waiting_for_the_same_metering_point(
+    repository: InMemoryRepository, archive: FileArchive
+) -> None:
+    first = upload(HALF_YEAR, "mieszkanie-1.pdf")
+    previous = import_files(repository, archive, [first], read=read_fixture)
+    second = upload(HALF_YEAR, "mieszkanie-2.pdf", replace=NEXT_HALF_YEAR)
+    copy = UploadedFile(name="mieszkanie-1 (1).pdf", content=first.content)
+    regenerated = UploadedFile(name="pobrana-ponownie.pdf", content=first.content + b"\n")
+
+    summary = import_files(
+        repository,
+        archive,
+        [second, copy, regenerated],
+        read=read_fixture,
+        waiting=previous.new_metering_points,
+    )
+
+    [new_point] = summary.new_metering_points
+    assert new_point.file_names == ("mieszkanie-1.pdf", "mieszkanie-2.pdf")
+    assert new_point.first_invoice.number == "E/TM3/BN000002/0002/26"
+    assert [d.file_name for d in summary.duplicates] == [
+        "mieszkanie-1 (1).pdf",
+        "pobrana-ponownie.pdf",
+    ]
+    assert summary.duplicates[1].reason == (
+        "Faktura E/TM3/BN000002/0002/26 czeka już na dodanie punktu poboru."
+    )
+    assert summary.waiting_file_count == 2
+    assert previous.new_metering_points[0].file_names == ("mieszkanie-1.pdf",)
+    assert repository.list_invoices(FLAT_PPE) == []
+
+
+def test_debit_note_of_a_waiting_metering_point_joins_it_in_the_next_batch(
+    repository: InMemoryRepository, archive: FileArchive
+) -> None:
+    previous = import_files(repository, archive, [upload(HALF_YEAR)], read=read_fixture)
+
+    summary = import_files(
+        repository,
+        archive,
+        [upload(NOTE)],
+        read=read_fixture,
+        waiting=previous.new_metering_points,
+    )
+
+    assert summary.rejected == []
+    [new_point] = summary.new_metering_points
+    assert new_point.file_names == (f"{HALF_YEAR}.pdf", f"{NOTE}.pdf")
+
+
 def test_summary_after_adding_a_metering_point_counts_its_invoices_as_imported(
     repository: InMemoryRepository, archive: FileArchive
 ) -> None:
@@ -208,9 +309,9 @@ def test_summary_after_adding_a_metering_point_counts_its_invoices_as_imported(
         read=read_fixture,
     )
     [new_point] = summary.new_metering_points
-    _, continuation = add_new_metering_point(
+    continuation = add_new_metering_point(
         repository, archive, new_point, name="Mieszkanie", icon=SiteIcon.FLAT, charges_car=False
-    )
+    ).summary
 
     after = summary.after_adding(new_point, continuation)
 
@@ -271,9 +372,9 @@ def test_debit_note_of_new_metering_point_waits_with_its_invoices_even_if_upload
     assert new_point.file_names == (f"{HALF_YEAR}.pdf", f"{NOTE}.pdf")
     assert new_point.first_invoice.number == "E/TM3/BN000002/0002/26"
 
-    _, continuation = add_new_metering_point(
+    continuation = add_new_metering_point(
         repository, archive, new_point, name="Mieszkanie", icon=SiteIcon.FLAT, charges_car=False
-    )
+    ).summary
 
     assert [f.invoice_number for f in continuation.imported] == [
         "E/TM3/BN000002/0002/26",

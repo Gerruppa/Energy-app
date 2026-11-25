@@ -5,15 +5,15 @@ from pathlib import Path
 
 from streamlit.testing.v1 import AppTest
 
-from pv_app.app.batch_import import import_files
-from pv_app.app.import_page import NEW_METERING_POINT
+from pv_app.app.batch_import import ImportSummary, import_files
+from pv_app.app.import_page import IMPORT_SUMMARY, IMPORTING, NEW_METERING_POINT
 from pv_app.app.settings import database_path
 from pv_app.app.wizard_page import ADDING_METERING_POINT
 from pv_app.domain.metering_point import MeteringPoint, SiteIcon
 from pv_app.storage.archive import FileArchive
 from pv_app.storage.in_memory import InMemoryRepository
 from pv_app.storage.sqlite import SqliteRepository
-from test_batch_import import MONTHLY, read_fixture, upload
+from test_batch_import import HALF_YEAR, MONTHLY, read_fixture, upload
 
 HOME = MeteringPoint(
     ppe_number="590000000000000001",
@@ -177,3 +177,59 @@ def test_wizard_ends_on_upload_page_asking_for_the_remaining_invoices(
 
     assert "Dom" in app.title[0].value
     assert not app.success
+
+
+def _waiting_for_flat(tmp_path: Path) -> ImportSummary:
+    """Podsumowanie paczki z Fakturą Mieszkania czekającą na dodanie PPE."""
+    return import_files(
+        InMemoryRepository(),
+        FileArchive(tmp_path / "scratch"),
+        [upload(HALF_YEAR, "mieszkanie.pdf")],
+        read=read_fixture,
+    )
+
+
+def test_leaving_the_upload_page_with_waiting_invoices_asks_for_confirmation(
+    app: AppTest, tmp_path: Path
+) -> None:
+    _save(HOME)
+    app.session_state[IMPORTING] = True
+    app.session_state[IMPORT_SUMMARY] = _waiting_for_flat(tmp_path)
+    app.run()
+
+    next(b for b in app.button if b.label == "Wróć do dashboardu").click().run()
+
+    assert app.title[0].value == "Wgraj pliki"
+    assert "plików do ponownego wgrania: 1" in app.warning[0].value
+    next(b for b in app.button if b.label == "Zostań").click().run()
+    assert app.title[0].value == "Wgraj pliki"
+    assert not app.warning
+
+    next(b for b in app.button if b.label == "Wróć do dashboardu").click().run()
+    next(b for b in app.button if b.label == "Wyjdź bez dodawania punktu poboru").click().run()
+
+    assert not app.exception
+    assert "Dom" in app.title[0].value
+
+
+def test_wizard_for_a_metering_point_already_in_the_app_imports_into_it(
+    app: AppTest, tmp_path: Path
+) -> None:
+    _save(HOME, FLAT)
+    summary = _waiting_for_flat(tmp_path)
+    app.session_state[IMPORTING] = True
+    app.session_state[IMPORT_SUMMARY] = summary
+    app.session_state[NEW_METERING_POINT] = summary.new_metering_points[0]
+    app.run()
+
+    app.text_input[0].set_value("Inna nazwa")
+    next(b for b in app.button if b.label == "Zapisz punkt poboru").click().run()
+
+    assert not app.exception
+    assert _saved() == [HOME, FLAT]
+    assert app.title[0].value == "Wgraj pliki"
+    assert app.info[0].value.startswith("Punkt poboru Mieszkanie już był w aplikacji")
+    assert not [b for b in app.button if b.label == "Dodaj punkt poboru"]
+    repo = SqliteRepository(database_path())
+    assert [i.number for i in repo.list_invoices(FLAT.ppe_number)] == ["E/TM3/BN000002/0002/26"]
+    repo.close()

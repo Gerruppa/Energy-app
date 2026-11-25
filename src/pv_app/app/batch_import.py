@@ -43,6 +43,10 @@ def read_file(file: UploadedFile) -> ImportResult:
 Reader = Callable[[UploadedFile], ImportResult]
 
 
+def _already_read(result: ImportResult) -> Reader:
+    return lambda _file: result
+
+
 @dataclass(frozen=True)
 class ImportedFile:
     file_name: str
@@ -112,6 +116,11 @@ class ImportSummary:
     rejected: list[SkippedFile] = field(default_factory=list)
     new_metering_points: list[NewMeteringPoint] = field(default_factory=list)
 
+    @property
+    def waiting_file_count(self) -> int:
+        """Pliki czekające na dodanie PPE: nie są zapisane, po wyjściu trzeba je wgrać ponownie."""
+        return sum(len(p.files) for p in self.new_metering_points)
+
     def after_adding(
         self, new_point: NewMeteringPoint, continuation: "ImportSummary"
     ) -> "ImportSummary":
@@ -137,6 +146,12 @@ class _ImportRun:
         self._notes_of_unknown_points: list[WaitingFile] = []
         self.summary = ImportSummary()
 
+    def add_waiting(self, points: Iterable[NewMeteringPoint]) -> None:
+        """Pliki czekające z wcześniejszej paczki wracają do importu bez ponownego odczytu."""
+        for point in points:
+            for waiting in point.files:
+                self.add(waiting.file, _already_read(waiting.result))
+
     def add(self, file: UploadedFile, read: Reader) -> None:
         duplicate_of = self._file_name_by_hash(file.sha256)
         if duplicate_of is not None:
@@ -157,8 +172,13 @@ class _ImportRun:
         else:
             already_saved = self._repository.has_debit_note(document.number)
             label = "Nota obciążeniowa"
-        if document.number in self._waiting_numbers or already_saved:
+        if already_saved:
             self._skip_duplicate(file, f"{label} {document.number} jest już w aplikacji.")
+            return
+        if document.number in self._waiting_numbers:
+            self._skip_duplicate(
+                file, f"{label} {document.number} czeka już na dodanie punktu poboru."
+            )
             return
         if waiting.ppe_number in self._known_points:
             self._save(file, document, result.warnings)
@@ -203,16 +223,26 @@ class _ImportRun:
     def _save(
         self, file: UploadedFile, document: Invoice | DebitNote, warnings: tuple[str, ...]
     ) -> None:
+        # Kopia w archiwum przed zapisem w bazie: kopię bez wpisu wczyta przebudowa bazy.
         archive_name = self._archive.store(file.name, file.content, file.sha256)
         if isinstance(document, Invoice):
-            self._repository.add_invoice(document)
-            ppe_number = document.header.ppe_number
+            self._repository.add_invoice(
+                document,
+                source_file=SourceFile(
+                    file.sha256,
+                    file.name,
+                    archive_name,
+                    document.number,
+                    document.header.ppe_number,
+                ),
+            )
         else:
-            self._repository.add_debit_note(document)
-            ppe_number = document.ppe_number
-        self._repository.add_source_file(
-            SourceFile(file.sha256, file.name, archive_name, document.number, ppe_number)
-        )
+            self._repository.add_debit_note(
+                document,
+                source_file=SourceFile(
+                    file.sha256, file.name, archive_name, document.number, document.ppe_number
+                ),
+            )
         self.summary.imported.append(
             ImportedFile(
                 file.name,
@@ -234,9 +264,11 @@ class _ImportRun:
             )
             return
         archive_name = self._archive.store(file.name, file.content, file.sha256)
-        new_hours = self._repository.add_hourly_readings(report.readings)
-        self._repository.add_source_file(
-            SourceFile(file.sha256, file.name, archive_name, report.label, report.ppe_number)
+        new_hours = self._repository.add_hourly_readings(
+            report.readings,
+            source_file=SourceFile(
+                file.sha256, file.name, archive_name, report.label, report.ppe_number
+            ),
         )
         self.summary.imported.append(
             ImportedFile(
@@ -265,13 +297,31 @@ def import_files(
     files: Iterable[UploadedFile],
     *,
     read: Reader = read_file,
+    waiting: Iterable[NewMeteringPoint] = (),
 ) -> ImportSummary:
-    """Importuje pliki po kolei; duplikaty i odrzucone Faktury nie zmieniają bazy."""
+    """Importuje pliki po kolei; duplikaty i odrzucone Faktury nie zmieniają bazy.
+
+    ``waiting``: PPE z Fakturami czekającymi z wcześniejszej paczki. Ich pliki przechodzą
+    import przed nowymi (PPE dodany w międzyczasie dostaje je od razu), więc pliki tego samego
+    nowego PPE trafiają do jednego ``NewMeteringPoint``, a duplikaty między paczkami są
+    pomijane. Przekazane ``NewMeteringPoint`` się nie zmieniają.
+    """
     run = _ImportRun(repository, archive)
+    run.add_waiting(waiting)
     for file in files:
         run.add(file, read)
     run.finish()
     return run.summary
+
+
+@dataclass(frozen=True)
+class AddedMeteringPoint:
+    point: MeteringPoint
+    summary: ImportSummary
+    """Import Faktur, które czekały na ten PPE."""
+    already_existed: bool
+    """PPE już był w aplikacji (np. podwójne kliknięcie, dodany w międzyczasie inną drogą);
+    jego nazwa, ikona i ładowanie auta się nie zmieniły."""
 
 
 def add_new_metering_point(
@@ -282,14 +332,17 @@ def add_new_metering_point(
     name: str,
     icon: SiteIcon,
     charges_car: bool,
-) -> tuple[MeteringPoint, ImportSummary]:
-    """Dodaje PPE z kreatora i importuje czekające na nie Faktury."""
-    point = create_metering_point_from_invoice(
+) -> AddedMeteringPoint:
+    """Dodaje PPE z kreatora i importuje czekające na nie Faktury; PPE, który już jest
+    w aplikacji, tylko dostaje te Faktury."""
+    existing = next(
+        (p for p in repository.list_metering_points() if p.ppe_number == new_point.ppe_number),
+        None,
+    )
+    point = existing or create_metering_point_from_invoice(
         repository, new_point.first_invoice, name=name, icon=icon, charges_car=charges_car
     )
-    already_read = {w.file.sha256: w.result for w in new_point.files}
     run = _ImportRun(repository, archive)
-    for waiting in new_point.files:
-        run.add(waiting.file, lambda file: already_read[file.sha256])
+    run.add_waiting([new_point])
     run.finish()
-    return point, run.summary
+    return AddedMeteringPoint(point, run.summary, already_existed=existing is not None)

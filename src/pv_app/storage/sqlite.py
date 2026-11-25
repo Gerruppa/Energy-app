@@ -170,7 +170,7 @@ class SqliteRepository:
                 self._connection.execute(f"DELETE FROM {table} WHERE ppe_number = ?", (ppe_number,))
         return [SourceFile(*r) for r in rows]
 
-    def add_invoice(self, invoice: Invoice) -> None:
+    def add_invoice(self, invoice: Invoice, *, source_file: SourceFile | None = None) -> None:
         period = invoice.header.billing_period
         with self._connection:
             self._connection.execute(
@@ -184,6 +184,7 @@ class SqliteRepository:
                     to_json(invoice),
                 ),
             )
+            self._insert_source_file(source_file)
 
     def has_invoice(self, number: str) -> bool:
         row = self._connection.execute(
@@ -208,13 +209,14 @@ class SqliteRepository:
                 )
         return source_file
 
-    def add_debit_note(self, note: DebitNote) -> None:
+    def add_debit_note(self, note: DebitNote, *, source_file: SourceFile | None = None) -> None:
         with self._connection:
             self._connection.execute(
                 "INSERT INTO debit_note (number, ppe_number, issue_date, payload)"
                 " VALUES (?, ?, ?, ?)",
                 (note.number, note.ppe_number, note.issue_date.isoformat(), to_json(note)),
             )
+            self._insert_source_file(source_file)
 
     def has_debit_note(self, number: str) -> bool:
         row = self._connection.execute(
@@ -231,6 +233,11 @@ class SqliteRepository:
 
     def add_source_file(self, source_file: SourceFile) -> None:
         with self._connection:
+            self._insert_source_file(source_file)
+
+    def _insert_source_file(self, source_file: SourceFile | None) -> None:
+        """Wpis pliku w bieżącej transakcji: błąd cofa też zapisany z nim dokument."""
+        if source_file is not None:
             self._connection.execute(
                 f"INSERT INTO source_file ({_SOURCE_FILE_COLUMNS}) VALUES (?, ?, ?, ?, ?)",
                 (
@@ -263,7 +270,9 @@ class SqliteRepository:
         ).fetchone()
         return SourceFile(*row) if row else None
 
-    def add_hourly_readings(self, readings: Iterable[HourlyReading]) -> int:
+    def add_hourly_readings(
+        self, readings: Iterable[HourlyReading], *, source_file: SourceFile | None = None
+    ) -> int:
         with self._connection:
             before = self._count_hourly_readings()
             self._connection.executemany(
@@ -287,6 +296,7 @@ class SqliteRepository:
                     for r in readings
                 ),
             )
+            self._insert_source_file(source_file)
             return self._count_hourly_readings() - before
 
     def _count_hourly_readings(self) -> int:

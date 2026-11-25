@@ -246,6 +246,47 @@ def test_deleted_invoice_is_gone_together_with_its_source_file(repository: Repos
     assert repository.find_source_file("cd" * 32) == source_file_for(other.number, "cd")
 
 
+def test_document_is_saved_together_with_its_source_file(repository: Repository) -> None:
+    invoice = fixture_invoice("new_layout_net_metering_monthly")
+    note = fixture_debit_note()
+    report = source_file_for("01.10.2025 – 01.10.2025", "12")
+
+    repository.add_invoice(invoice, source_file=source_file_for(invoice.number, "ab"))
+    repository.add_debit_note(note, source_file=source_file_for(note.number, "cd"))
+    added = repository.add_hourly_readings([hour(1, 1, "0.1")], source_file=report)
+
+    assert repository.has_invoice(invoice.number)
+    assert repository.has_debit_note(note.number)
+    assert added == 1
+    assert repository.list_source_files() == [
+        source_file_for(invoice.number, "ab"),
+        source_file_for(note.number, "cd"),
+        report,
+    ]
+
+
+def test_sqlite_saves_no_document_when_its_source_file_cannot_be_saved(tmp_path: Path) -> None:
+    repository = SqliteRepository(tmp_path / "pv.sqlite3")
+    taken = source_file_for("X/1", "ab")
+    repository.add_source_file(taken)
+    invoice = fixture_invoice("new_layout_net_metering_monthly")
+    note = fixture_debit_note()
+
+    # Ten sam hash co zapisany plik: zapis wpisu kończy się błędem.
+    with pytest.raises(sqlite3.IntegrityError):
+        repository.add_invoice(invoice, source_file=taken)
+    with pytest.raises(sqlite3.IntegrityError):
+        repository.add_debit_note(note, source_file=taken)
+    with pytest.raises(sqlite3.IntegrityError):
+        repository.add_hourly_readings([hour(1, 1, "0.1")], source_file=taken)
+
+    assert not repository.has_invoice(invoice.number)
+    assert not repository.has_debit_note(note.number)
+    assert not repository.has_hourly_readings(HOME.ppe_number)
+    assert repository.list_source_files() == [taken]
+    repository.close()
+
+
 def test_source_files_are_listed_in_the_order_they_were_added(repository: Repository) -> None:
     files = [
         source_file_for("B/1", "ff"),

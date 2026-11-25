@@ -66,7 +66,7 @@ def main() -> None:
                 SettlementType.NET_METERING
             )
             count = len(repository.list_metering_points()) + 1
-            _, continuation = add_new_metering_point(
+            added = add_new_metering_point(
                 repository,
                 archive,
                 new_point,
@@ -74,7 +74,7 @@ def main() -> None:
                 icon=SiteIcon.HOUSE if net_metering else SiteIcon.FLAT,
                 charges_car=net_metering,
             )
-            _report(continuation)
+            _report(added.summary)
         # Raport wartości godzinowych nieznanego PPE jest odrzucany; PPE dodaje dopiero kreator.
         rejected = {skipped.file_name for skipped in summary.rejected}
         retry = [f for f in files if f.name in rejected and f.name.endswith(".xlsx")]

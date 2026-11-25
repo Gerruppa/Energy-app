@@ -44,7 +44,10 @@ class Repository(Protocol):
         wywołujący)."""
         ...
 
-    def add_invoice(self, invoice: Invoice) -> None: ...
+    def add_invoice(self, invoice: Invoice, *, source_file: SourceFile | None = None) -> None:
+        """Zapisuje Fakturę; z ``source_file`` razem z wpisem jej wgranego pliku, oba albo
+        żadne (w SQLite jedna transakcja)."""
+        ...
 
     def has_invoice(self, number: str) -> bool: ...
 
@@ -57,7 +60,9 @@ class Repository(Protocol):
         usuwa wywołujący) albo ``None``, gdy Faktura nie miała pliku."""
         ...
 
-    def add_debit_note(self, note: DebitNote) -> None: ...
+    def add_debit_note(self, note: DebitNote, *, source_file: SourceFile | None = None) -> None:
+        """Zapisuje Notę obciążeniową; z ``source_file`` jak ``add_invoice``."""
+        ...
 
     def has_debit_note(self, number: str) -> bool: ...
 
@@ -77,9 +82,13 @@ class Repository(Protocol):
         """Wgrany plik Faktury albo Noty obciążeniowej o tym numerze."""
         ...
 
-    def add_hourly_readings(self, readings: Iterable[HourlyReading]) -> int:
+    def add_hourly_readings(
+        self, readings: Iterable[HourlyReading], *, source_file: SourceFile | None = None
+    ) -> int:
         """Zapisuje godziny Profilu godzinowego; godzina już zapisana (ten sam PPE, koniec
-        godziny i ``extra_hour``) dostaje nowe wartości. Zwraca liczbę nowych godzin."""
+        godziny i ``extra_hour``) dostaje nowe wartości. Zwraca liczbę nowych godzin.
+        Z ``source_file`` (Raport wartości godzinowych) godziny i wpis pliku zapisują się
+        razem albo wcale."""
         ...
 
     def list_hourly_readings(self, ppe_number: str) -> list[HourlyReading]:

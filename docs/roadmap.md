@@ -47,7 +47,7 @@ F1 + F1a + F0 + F2 + F3 w osobnych widokach PPE. Ustalenia z grillowania (XI 202
 
 ## F1. Import faktur Tauron (PDF)
 
-**Status:** zrobione. Faktura rozliczeniowa w nowym układzie (#3; warianty i pułapki w `docs/invoice-structure.md`), import paczki z duplikatami i archiwum (#4), Faktura rozliczeniowa w starym układzie (#5; tabele czytane z komórek po położeniu na stronie), Faktury korygujące i Noty obciążeniowe korekty (#6).
+**Status:** zrobione. Faktura rozliczeniowa w nowym układzie (#3; warianty i pułapki w `docs/invoice-structure.md`), import paczki z duplikatami i archiwum (#4), Faktura rozliczeniowa w starym układzie (#5; tabele czytane z komórek po położeniu na stronie), Faktury korygujące i Noty obciążeniowe korekty (#6). Ograniczenia paczki (#14): Faktury czekające na nowy PPE dołączają do kolejnej paczki, a wyjście ze strony przy czekających pyta o potwierdzenie; dokument i wpis jego pliku zapisują się w jednej transakcji; kreator dla PPE, który już jest w aplikacji, importuje do niego czekające Faktury.
 
 Otwarte pytania:
 - Nota obciążeniowa nie podaje okresu, którego dotyczy; przypisujemy ją do Faktury, w której Okresie rozliczeniowym leży data sprzedaży Noty. Czy to zgodne z tym, jak Tauron rozumie premię prądową (np. przyznaną za 2024)?
