@@ -103,6 +103,10 @@ Energia pobrana i oddana w PPE godzina po godzinie, z Raportu wartości godzinow
 Plik xlsx od Tauron Dystrybucji z Profilem godzinowym jednego PPE: dla każdej godziny Energia pobrana i oddana przed zbilansowaniem i po nim. Przy zmianie czasu na zimowy godzina „3:00” występuje dwa razy, druga z flagą „Godz dodat”.
 _Avoid_: eksport, raport godzinowy
 
+**Typowa doba**:
+Średnia Energia pobrana i oddana w każdej godzinie doby, z Profilu godzinowego w Okresie widoku (po Zbilansowaniu godzinowym). Pokazuje, o której panele dają nadwyżkę, a kiedy dom pobiera z sieci.
+_Avoid_: profil dobowy, średni dzień
+
 **Zbilansowanie godzinowe**:
 Tauron odejmuje w każdej godzinie mniejszą z Energii pobranej i oddanej od większej; Faktura rozlicza ilości po zbilansowaniu. Ilości przed zbilansowaniem (ECP, ECO) to surowe wskazania licznika, po zbilansowaniu (ECBP, ECBO) to Energia pobrana i oddana z Faktury.
 
