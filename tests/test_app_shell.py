@@ -54,7 +54,7 @@ def test_with_a_metering_point_does_not_show_welcome_screen(app: AppTest) -> Non
     app.run()
 
     assert not app.exception
-    assert "Dodaj punkt poboru" not in [b.label for b in app.button]
+    assert "Dodaj punkt poboru" not in [b.label for b in app.main.button]
     assert "Dom" in app.title[0].value
 
 
@@ -224,7 +224,7 @@ def test_invoice_page_opened_from_page_address_shows_invoice_in_plain_language(
     assert not app.exception
     assert not app.tabs
     assert invoice.number in app.title[0].value
-    headings = [h.value for h in app.subheader]
+    headings = [h.value for h in app.main.subheader]
     assert headings == [
         "Liczniki",
         "Rozliczenie OZE",

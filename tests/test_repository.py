@@ -120,6 +120,7 @@ def test_source_file_is_found_by_its_hash(repository: Repository) -> None:
         file_name="faktura.pdf",
         archive_name="abababababab-faktura.pdf",
         invoice_number="T/K1/BN000001/0004/26",
+        ppe_number=HOME.ppe_number,
     )
 
     repository.add_source_file(source_file)
@@ -134,6 +135,7 @@ def test_source_file_is_found_by_the_number_of_its_document(repository: Reposito
         file_name="faktura.pdf",
         archive_name="abababababab-faktura.pdf",
         invoice_number="T/K1/BN000001/0004/26",
+        ppe_number=HOME.ppe_number,
     )
 
     repository.add_source_file(source_file)
@@ -224,8 +226,8 @@ def test_newer_report_replaces_values_of_the_same_hour(repository: Repository) -
     ]
 
 
-def source_file_for(number: str, sha: str) -> SourceFile:
-    return SourceFile(sha * 32, f"{sha}.pdf", f"{sha * 6}-{sha}.pdf", number)
+def source_file_for(number: str, sha: str, *, ppe: str = HOME.ppe_number) -> SourceFile:
+    return SourceFile(sha * 32, f"{sha}.pdf", f"{sha * 6}-{sha}.pdf", number, ppe)
 
 
 def test_deleted_invoice_is_gone_together_with_its_source_file(repository: Repository) -> None:
@@ -271,3 +273,87 @@ def test_clearing_documents_keeps_metering_points(repository: Repository) -> Non
     assert repository.list_debit_notes(fixture_debit_note().ppe_number) == []
     assert repository.list_source_files() == []
     assert repository.list_hourly_readings(HOME.ppe_number) == []
+
+
+def test_changed_settings_replace_those_of_the_same_metering_point(
+    repository: Repository,
+) -> None:
+    flat = replace(HOME, ppe_number="590000000000000002", name="Mieszkanie", slug="mieszkanie")
+    repository.add_metering_point(HOME)
+    repository.add_metering_point(flat)
+    renamed = replace(HOME, name="Dom rodziców", icon=SiteIcon.OTHER, charges_car=False)
+
+    repository.update_metering_point(renamed)
+
+    assert repository.list_metering_points() == [renamed, flat]
+
+
+def test_knows_whether_a_metering_point_has_hourly_profile(repository: Repository) -> None:
+    repository.add_hourly_readings([hour(1, 1, "0.1")])
+
+    assert repository.has_hourly_readings(HOME.ppe_number)
+    assert not repository.has_hourly_readings("590000000000000002")
+
+
+def test_deleted_metering_point_takes_all_its_documents_and_source_files(
+    repository: Repository,
+) -> None:
+    october = fixture_invoice("new_layout_net_metering_monthly")
+    other = fixture_invoice("new_layout_standard_half_year")
+    note = replace(fixture_debit_note(), ppe_number=HOME.ppe_number)
+    flat = replace(HOME, ppe_number=other.header.ppe_number, name="Mieszkanie", slug="mieszkanie")
+    repository.add_metering_point(HOME)
+    repository.add_metering_point(flat)
+    for invoice, sha in ((october, "ab"), (other, "cd")):
+        repository.add_invoice(invoice)
+        repository.add_source_file(
+            source_file_for(invoice.number, sha, ppe=invoice.header.ppe_number)
+        )
+    repository.add_debit_note(note)
+    repository.add_source_file(source_file_for(note.number, "ef"))
+    repository.add_hourly_readings([hour(1, 1, "0.1"), hour(1, 1, "0.2", ppe=flat.ppe_number)])
+    repository.add_source_file(source_file_for("01.10.2025 – 31.10.2025", "12"))
+
+    deleted = repository.delete_metering_point(HOME.ppe_number)
+
+    assert deleted == [
+        source_file_for(october.number, "ab"),
+        source_file_for(note.number, "ef"),
+        source_file_for("01.10.2025 – 31.10.2025", "12"),
+    ]
+    assert repository.list_metering_points() == [flat]
+    assert repository.list_invoices(HOME.ppe_number) == []
+    assert repository.list_debit_notes(HOME.ppe_number) == []
+    assert not repository.has_hourly_readings(HOME.ppe_number)
+    assert repository.list_invoices(flat.ppe_number) == [other]
+    assert repository.has_hourly_readings(flat.ppe_number)
+    assert repository.list_source_files() == [
+        source_file_for(other.number, "cd", ppe=other.header.ppe_number)
+    ]
+
+
+def test_source_files_saved_before_they_knew_their_metering_point_get_it_on_migration(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "old.sqlite3"
+    repo = SqliteRepository(path)
+    invoice = fixture_invoice("new_layout_net_metering_monthly")
+    repo.add_invoice(invoice)
+    repo.add_hourly_readings([hour(1, 1, "0.1")])
+    repo.close()
+    old = sqlite3.connect(path)
+    with old:
+        old.execute("ALTER TABLE source_file DROP COLUMN ppe_number")
+        old.execute("PRAGMA user_version = 5")
+        for number, sha in ((invoice.number, "ab"), ("01.10.2025 – 31.10.2025", "cd")):
+            old.execute(
+                "INSERT INTO source_file VALUES (?, ?, ?, ?)",
+                (sha * 32, f"{sha}.pdf", f"{sha}-{sha}.pdf", number),
+            )
+    old.close()
+
+    repo = SqliteRepository(path)
+
+    # Raport wartości godzinowych bez numeru: PPE jedynego Profilu godzinowego w bazie.
+    assert [f.ppe_number for f in repo.list_source_files()] == [HOME.ppe_number] * 2
+    repo.close()

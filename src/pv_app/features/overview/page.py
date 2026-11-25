@@ -13,6 +13,7 @@ from pv_app.features.navigation import open_invoice
 from pv_app.features.overview.analysis import forecast_chart
 from pv_app.features.overview.top import render_top
 from pv_app.features.terms import FORECAST_HELP
+from pv_app.storage.repository import Repository
 
 EXPORTED_HELP = (
     "Prąd z paneli, którego dom w danej chwili nie zużył i który popłynął do sieci. "
@@ -35,7 +36,7 @@ class OverviewFeature:
     title = "Przegląd"
     order = 10
 
-    def is_available(self, metering_point: MeteringPoint) -> bool:
+    def is_available(self, repository: Repository, metering_point: MeteringPoint) -> bool:
         return True
 
     def render(self, context: FeatureContext) -> None:

@@ -33,7 +33,9 @@ class Feature(Protocol):
     title: str
     order: int
 
-    def is_available(self, metering_point: MeteringPoint) -> bool: ...
+    def is_available(self, repository: Repository, metering_point: MeteringPoint) -> bool:
+        """Czy zakładka pojawia się dla PPE; reguły w ``features/visibility.py``."""
+        ...
 
     def render(self, context: FeatureContext) -> None: ...
 

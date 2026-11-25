@@ -62,8 +62,24 @@ _MIGRATIONS = (
         PRIMARY KEY (ppe_number, hour_end, extra_hour)
     ) WITHOUT ROWID;
     """,
+    # PPE pliku: z Faktury albo Noty obciążeniowej o jego numerze; Raport wartości godzinowych
+    # nie zostawia numeru, więc dostaje PPE Profilu godzinowego, gdy ten jest tylko jeden
+    # (inaczej zostaje pusty do przebudowy bazy).
+    """
+    ALTER TABLE source_file ADD COLUMN ppe_number TEXT NOT NULL DEFAULT '';
+    UPDATE source_file SET ppe_number = COALESCE(
+        (SELECT ppe_number FROM invoice WHERE number = source_file.invoice_number),
+        (SELECT ppe_number FROM debit_note WHERE number = source_file.invoice_number),
+        CASE WHEN (SELECT COUNT(DISTINCT ppe_number) FROM hourly_reading) = 1
+            THEN (SELECT ppe_number FROM hourly_reading LIMIT 1) END,
+        ''
+    );
+    """,
 )
 """Kolejne wersje schematu; ``PRAGMA user_version`` mówi, ile już wykonano."""
+
+
+_SOURCE_FILE_COLUMNS = "sha256, file_name, archive_name, invoice_number, ppe_number"
 
 
 class SqliteRepository:
@@ -121,6 +137,38 @@ class SqliteRepository:
             )
             for r in rows
         ]
+
+    def update_metering_point(self, metering_point: MeteringPoint) -> None:
+        with self._connection:
+            self._connection.execute(
+                "UPDATE metering_point SET name = ?, slug = ?, icon = ?, charges_car = ?,"
+                " address = ?, net_metering = ? WHERE ppe_number = ?",
+                (
+                    metering_point.name,
+                    metering_point.slug,
+                    metering_point.icon.value,
+                    metering_point.charges_car,
+                    metering_point.address,
+                    metering_point.net_metering,
+                    metering_point.ppe_number,
+                ),
+            )
+
+    def delete_metering_point(self, ppe_number: str) -> list[SourceFile]:
+        rows = self._connection.execute(
+            f"SELECT {_SOURCE_FILE_COLUMNS} FROM source_file WHERE ppe_number = ? ORDER BY rowid",
+            (ppe_number,),
+        ).fetchall()
+        with self._connection:
+            for table in (
+                "metering_point",
+                "invoice",
+                "debit_note",
+                "hourly_reading",
+                "source_file",
+            ):
+                self._connection.execute(f"DELETE FROM {table} WHERE ppe_number = ?", (ppe_number,))
+        return [SourceFile(*r) for r in rows]
 
     def add_invoice(self, invoice: Invoice) -> None:
         period = invoice.header.billing_period
@@ -184,33 +232,32 @@ class SqliteRepository:
     def add_source_file(self, source_file: SourceFile) -> None:
         with self._connection:
             self._connection.execute(
-                "INSERT INTO source_file (sha256, file_name, archive_name, invoice_number)"
-                " VALUES (?, ?, ?, ?)",
+                f"INSERT INTO source_file ({_SOURCE_FILE_COLUMNS}) VALUES (?, ?, ?, ?, ?)",
                 (
                     source_file.sha256,
                     source_file.file_name,
                     source_file.archive_name,
                     source_file.invoice_number,
+                    source_file.ppe_number,
                 ),
             )
 
     def find_source_file(self, sha256: str) -> SourceFile | None:
         row = self._connection.execute(
-            "SELECT sha256, file_name, archive_name, invoice_number FROM source_file"
-            " WHERE sha256 = ?",
+            f"SELECT {_SOURCE_FILE_COLUMNS} FROM source_file WHERE sha256 = ?",
             (sha256,),
         ).fetchone()
         return SourceFile(*row) if row else None
 
     def list_source_files(self) -> list[SourceFile]:
         rows = self._connection.execute(
-            "SELECT sha256, file_name, archive_name, invoice_number FROM source_file ORDER BY rowid"
+            f"SELECT {_SOURCE_FILE_COLUMNS} FROM source_file ORDER BY rowid"
         ).fetchall()
         return [SourceFile(*r) for r in rows]
 
     def find_source_file_for(self, document_number: str) -> SourceFile | None:
         row = self._connection.execute(
-            "SELECT sha256, file_name, archive_name, invoice_number FROM source_file"
+            f"SELECT {_SOURCE_FILE_COLUMNS} FROM source_file"
             " WHERE invoice_number = ? ORDER BY rowid LIMIT 1",
             (document_number,),
         ).fetchone()
@@ -265,6 +312,12 @@ class SqliteRepository:
             )
             for r in rows
         ]
+
+    def has_hourly_readings(self, ppe_number: str) -> bool:
+        row = self._connection.execute(
+            "SELECT 1 FROM hourly_reading WHERE ppe_number = ? LIMIT 1", (ppe_number,)
+        ).fetchone()
+        return row is not None
 
     def clear_documents(self) -> None:
         with self._connection:

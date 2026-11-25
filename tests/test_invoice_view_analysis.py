@@ -178,7 +178,9 @@ def test_same_period_a_year_earlier_without_own_invoices_keeps_only_tauron_value
 def test_sheet_points_to_the_archived_pdf_of_the_invoice() -> None:
     october = fixture_invoice("new_layout_net_metering_monthly")
     repository = repository_with(october)
-    source_file = SourceFile("ab" * 32, "faktura.pdf", "abababababab-faktura.pdf", october.number)
+    source_file = SourceFile(
+        "ab" * 32, "faktura.pdf", "abababababab-faktura.pdf", october.number, HOME
+    )
     repository.add_source_file(source_file)
 
     sheet = invoice_sheet(repository, HOME, october.number)

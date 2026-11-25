@@ -20,6 +20,11 @@ class SourceFile:
     invoice_number: str
     """Numer Faktury albo Noty obciążeniowej z tego pliku; dla Raportu wartości godzinowych
     jego zakres dni (``HourlyValuesReport.label``)."""
+    ppe_number: str
+    """PPE dokumentu z tego pliku (usunięcie PPE usuwa też jego pliki). Pusty tylko przy
+    Raporcie wartości godzinowych zapisanym przed tą kolumną, gdy Profil godzinowy miało kilka
+    PPE: usunięcie PPE go nie znajdzie (kopia zostaje w archiwum, a przebudowa odrzuca ją jako
+    raport nieznanego PPE); każda przebudowa bazy uzupełnia to pole."""
 
 
 class Repository(Protocol):
@@ -28,6 +33,16 @@ class Repository(Protocol):
     def add_metering_point(self, metering_point: MeteringPoint) -> None: ...
 
     def list_metering_points(self) -> list[MeteringPoint]: ...
+
+    def update_metering_point(self, metering_point: MeteringPoint) -> None:
+        """Zapisuje nowe ustawienia (nazwa, ikona, ładowanie auta) PPE o tym numerze PPE."""
+        ...
+
+    def delete_metering_point(self, ppe_number: str) -> list[SourceFile]:
+        """Usuwa PPE z jego Fakturami, Notami obciążeniowymi, Profilem godzinowym i wpisami
+        wgranych plików; zwraca usunięte wpisy w kolejności wgrania (kopie w archiwum usuwa
+        wywołujący)."""
+        ...
 
     def add_invoice(self, invoice: Invoice) -> None: ...
 
@@ -69,6 +84,10 @@ class Repository(Protocol):
 
     def list_hourly_readings(self, ppe_number: str) -> list[HourlyReading]:
         """Profil godzinowy PPE od najstarszej godziny."""
+        ...
+
+    def has_hourly_readings(self, ppe_number: str) -> bool:
+        """Czy PPE ma choć jedną godzinę Profilu godzinowego (bez czytania całego Profilu)."""
         ...
 
     def clear_documents(self) -> None:

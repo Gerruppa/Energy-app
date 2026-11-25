@@ -206,10 +206,12 @@ class _ImportRun:
         archive_name = self._archive.store(file.name, file.content, file.sha256)
         if isinstance(document, Invoice):
             self._repository.add_invoice(document)
+            ppe_number = document.header.ppe_number
         else:
             self._repository.add_debit_note(document)
+            ppe_number = document.ppe_number
         self._repository.add_source_file(
-            SourceFile(file.sha256, file.name, archive_name, document.number)
+            SourceFile(file.sha256, file.name, archive_name, document.number, ppe_number)
         )
         self.summary.imported.append(
             ImportedFile(
@@ -234,7 +236,7 @@ class _ImportRun:
         archive_name = self._archive.store(file.name, file.content, file.sha256)
         new_hours = self._repository.add_hourly_readings(report.readings)
         self._repository.add_source_file(
-            SourceFile(file.sha256, file.name, archive_name, report.label)
+            SourceFile(file.sha256, file.name, archive_name, report.label, report.ppe_number)
         )
         self.summary.imported.append(
             ImportedFile(

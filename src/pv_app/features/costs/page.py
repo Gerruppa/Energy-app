@@ -23,6 +23,7 @@ from pv_app.features.monthly import PeriodTotals, monthly_chart
 from pv_app.features.monthly_figure import COST_BLOCK_NOTE, cost_figure
 from pv_app.features.navigation import open_invoice
 from pv_app.features.terms import group_text
+from pv_app.storage.repository import Repository
 
 PERIOD_COST_HELP = (
     "Wynik rozliczenia brutto z Faktur (sprzedaż + dystrybucja) minus Bonifikaty z Faktur "
@@ -56,7 +57,7 @@ class CostsFeature:
     title = "Koszty i Faktury"
     order = 30
 
-    def is_available(self, metering_point: MeteringPoint) -> bool:
+    def is_available(self, repository: Repository, metering_point: MeteringPoint) -> bool:
         return True
 
     def render(self, context: FeatureContext) -> None:

@@ -24,6 +24,24 @@ class InMemoryRepository:
     def list_metering_points(self) -> list[MeteringPoint]:
         return list(self._metering_points)
 
+    def update_metering_point(self, metering_point: MeteringPoint) -> None:
+        self._metering_points = [
+            metering_point if p.ppe_number == metering_point.ppe_number else p
+            for p in self._metering_points
+        ]
+
+    def delete_metering_point(self, ppe_number: str) -> list[SourceFile]:
+        self._metering_points = [p for p in self._metering_points if p.ppe_number != ppe_number]
+        self._invoices = [i for i in self._invoices if i.header.ppe_number != ppe_number]
+        self._debit_notes = [n for n in self._debit_notes if n.ppe_number != ppe_number]
+        self._hourly_readings = {
+            k: r for k, r in self._hourly_readings.items() if r.ppe_number != ppe_number
+        }
+        deleted = [f for f in self._source_files.values() if f.ppe_number == ppe_number]
+        for source_file in deleted:
+            del self._source_files[source_file.sha256]
+        return deleted
+
     def add_invoice(self, invoice: Invoice) -> None:
         self._invoices.append(invoice)
 
@@ -81,6 +99,9 @@ class InMemoryRepository:
             (r for r in self._hourly_readings.values() if r.ppe_number == ppe_number),
             key=lambda r: (r.hour_end, r.extra_hour),
         )
+
+    def has_hourly_readings(self, ppe_number: str) -> bool:
+        return any(r.ppe_number == ppe_number for r in self._hourly_readings.values())
 
     def clear_documents(self) -> None:
         self._invoices = []

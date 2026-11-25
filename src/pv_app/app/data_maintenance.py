@@ -1,5 +1,5 @@
-"""Narzędzia porządkowe strony danych bez Streamlita: usunięcie Faktury i przebudowa bazy
-z archiwum plików (np. po poprawce parsera)."""
+"""Narzędzia porządkowe bez Streamlita: usunięcie Faktury, usunięcie PPE z jego danymi
+i przebudowa bazy z archiwum plików (np. po poprawce parsera)."""
 
 from dataclasses import replace
 
@@ -24,6 +24,14 @@ def delete_invoice(repository: Repository, archive: FileArchive, number: str) ->
     przywróciła; ten sam plik można potem wgrać ponownie."""
     source_file = repository.delete_invoice(number)
     if source_file is not None:
+        archive.remove(source_file.archive_name)
+
+
+def delete_metering_point(repository: Repository, archive: FileArchive, ppe_number: str) -> None:
+    """Usuwa PPE z tej kopii aplikacji: z bazy razem z jego Fakturami, Notami obciążeniowymi
+    i Profilem godzinowym oraz kopie jego plików z archiwum, żeby przebudowa ich nie
+    przywróciła. Inne PPE zostają."""
+    for source_file in repository.delete_metering_point(ppe_number):
         archive.remove(source_file.archive_name)
 
 

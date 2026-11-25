@@ -41,6 +41,11 @@ def render_wizard(repository: Repository, archive: FileArchive) -> None:
         "Wgraj jedną Fakturę Tauron (PDF) z tego punktu poboru. Aplikacja odczyta z niej "
         "numer PPE, adres i taryfę, a Ty nadasz punktowi poboru tylko nazwę."
     )
+    if repository.list_metering_points() and st.button("Anuluj", key="wizard_cancel"):
+        # Z paska bocznego (są już PPE) kreator da się zamknąć przed wgraniem Faktury.
+        st.session_state.pop(ADDING_METERING_POINT, None)
+        st.session_state.pop(_WIZARD_UPLOAD, None)
+        st.rerun()
     upload = st.file_uploader("Faktura (PDF)", type="pdf")
     if upload is None:
         return

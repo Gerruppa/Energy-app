@@ -1,5 +1,5 @@
-"""Przejścia przez adres strony: Okres widoku (``&okres=…``) i otwarta Faktura (``&faktura=…``),
-oraz otwarcie strony importu.
+"""Przejścia przez adres strony: PPE (``?ppe=…``), Okres widoku (``&okres=…``) i otwarta
+Faktura (``&faktura=…``), oraz otwarcie strony importu.
 
 Wspólne dla zakładek i powłoki, więc każda zakładka może otworzyć widok Faktury albo stronę
 „Wgraj pliki” bez importowania innej zakładki ani powłoki.
@@ -11,6 +11,7 @@ import streamlit as st
 
 from pv_app.domain.view_period import ViewPeriod
 
+METERING_POINT_QUERY_KEY = "ppe"
 VIEW_PERIOD_QUERY_KEY = "okres"
 INVOICE_QUERY_KEY = "faktura"
 IMPORTING = "importing"
@@ -37,6 +38,17 @@ def close_invoice(view_period: ViewPeriod | None = None) -> None:
         del st.query_params[INVOICE_QUERY_KEY]
     if view_period is not None:
         st.query_params[VIEW_PERIOD_QUERY_KEY] = view_period.to_query()
+
+
+def forget_view(*, metering_point: bool = False) -> None:
+    """Usuwa z adresu Okres widoku i otwartą Fakturę (dotyczą jednego PPE), z
+    ``metering_point`` także sam PPE."""
+    keys = [VIEW_PERIOD_QUERY_KEY, INVOICE_QUERY_KEY]
+    if metering_point:
+        keys.append(METERING_POINT_QUERY_KEY)
+    for key in keys:
+        if key in st.query_params:
+            del st.query_params[key]
 
 
 def open_import() -> None:

@@ -8,11 +8,13 @@ from pathlib import Path
 import pytest
 
 from pv_app.app.batch_import import UploadedFile, import_files
-from pv_app.app.data_maintenance import delete_invoice, rebuild
+from pv_app.app.data_maintenance import delete_invoice, delete_metering_point, rebuild
 from pv_app.ingest import ImportResult
 from pv_app.storage.archive import FileArchive
 from pv_app.storage.in_memory import InMemoryRepository
 from test_batch_import import (
+    FLAT_PPE,
+    HALF_YEAR,
     HOME,
     MONTHLY,
     hourly_report_file,
@@ -112,3 +114,25 @@ def test_file_rejected_by_a_rebuild_comes_back_with_the_next_rebuild(
 
     assert [f.file_name for f in summary.imported] == [f"{MONTHLY}.pdf"]
     assert len(repository.list_invoices(HOME.ppe_number)) == 1
+
+
+def test_deleted_metering_point_leaves_database_and_archive_and_does_not_come_back(
+    repository: InMemoryRepository, archive: FileArchive
+) -> None:
+    flat = replace(HOME, ppe_number=FLAT_PPE, name="Mieszkanie", slug="mieszkanie")
+    repository.add_metering_point(flat)
+    files = [
+        upload(MONTHLY),
+        hourly_report_file("dom.xlsx", HOME.ppe_number, (1, 0.25)),
+        upload(HALF_YEAR, "mieszkanie.pdf"),
+    ]
+    import_files(repository, archive, files, read=read_sheet_or_fixture)
+
+    delete_metering_point(repository, archive, HOME.ppe_number)
+
+    assert repository.list_metering_points() == [flat]
+    assert [archive.file_name(n) for n in archive.names()] == ["mieszkanie.pdf"]
+    rebuild(repository, archive, read=read_sheet_or_fixture)
+    assert repository.list_invoices(HOME.ppe_number) == []
+    assert repository.list_hourly_readings(HOME.ppe_number) == []
+    assert len(repository.list_invoices(FLAT_PPE)) == 1

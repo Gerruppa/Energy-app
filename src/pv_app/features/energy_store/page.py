@@ -18,6 +18,8 @@ from pv_app.features.energy_store.analysis import EnergyStoreView, energy_store_
 from pv_app.features.energy_store.chart import portions_figure, store_figure
 from pv_app.features.navigation import open_invoice
 from pv_app.features.terms import ESTIMATE_HELP, seller_share_help, store_help
+from pv_app.features.visibility import shows_energy_store
+from pv_app.storage.repository import Repository
 
 MOVEMENTS_KEY = "store_movements"
 ROUNDING_HELP = (
@@ -32,8 +34,8 @@ class EnergyStoreFeature:
     title = "Magazyn energii"
     order = 20
 
-    def is_available(self, metering_point: MeteringPoint) -> bool:
-        return metering_point.net_metering
+    def is_available(self, repository: Repository, metering_point: MeteringPoint) -> bool:
+        return shows_energy_store(repository, metering_point)
 
     def render(self, context: FeatureContext) -> None:
         view = energy_store_view(context.repository, context.filters)
