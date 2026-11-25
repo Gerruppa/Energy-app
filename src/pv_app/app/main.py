@@ -36,7 +36,7 @@ try:
             st.session_state[ADDING_METERING_POINT] = True
             st.rerun()
     else:
-        if st.sidebar.button("Wgraj Faktury", type="primary"):
+        if st.sidebar.button("Wgraj pliki", type="primary"):
             st.session_state[IMPORTING] = True
             st.rerun()
         requested = st.query_params.get("ppe")

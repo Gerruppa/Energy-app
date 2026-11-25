@@ -85,7 +85,7 @@ def test_import_page_accepts_many_files_and_summarises_rejected_ones(app: AppTes
     repo.close()
     app.run()
     app.sidebar.button[0].click().run()
-    assert app.title[0].value == "Wgraj Faktury"
+    assert app.title[0].value == "Wgraj pliki"
 
     app.file_uploader[0].set_value(
         [("a.pdf", b"to nie PDF", "application/pdf"), ("b.pdf", b"ani to", "application/pdf")]

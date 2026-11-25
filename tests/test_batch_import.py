@@ -4,13 +4,16 @@ Pliki w testach to zrzuty wierszy z ``tests/fixtures/`` (ADR 0005), czytane wstr
 czytnikiem zamiast PDF-a; liczby w nich są wymyślone.
 """
 
+import json
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
 
 from pv_app.app.batch_import import UploadedFile, add_new_metering_point, import_files
+from pv_app.domain.invoice import DocumentKind
 from pv_app.domain.metering_point import MeteringPoint, SiteIcon
-from pv_app.ingest import ImportResult, import_document
+from pv_app.ingest import ImportResult, import_document, import_sheet
 from pv_app.ingest.raw import RawDocument
 from pv_app.storage.archive import FileArchive
 from pv_app.storage.in_memory import InMemoryRepository
@@ -291,3 +294,61 @@ def test_debit_note_of_unknown_metering_point_without_its_invoice_is_rejected(
         "Nota obciążeniowa TM3NBN000002/001 dotyczy punktu poboru, którego nie ma "
         "w aplikacji. Wgraj ją razem z Fakturą tego punktu poboru albo po jego dodaniu."
     ]
+
+
+def hourly_report_file(name: str, ppe: str, *hours: tuple[int, float]) -> UploadedFile:
+    """Raport wartości godzinowych jako JSON wierszy arkusza (zamiast xlsx); liczby wymyślone."""
+    header = ["PPE", "Godz.", '"Godz dodat"'] + [
+        f"Ilość energii - {code} kWh" for code in ("ECP", "ECO", "ECBP", "ECBO")
+    ]
+    rows = [[ppe, 45931 + hour / 24, "0", kwh, 0, kwh, 0] for hour, kwh in hours]
+    return UploadedFile(name=name, content=json.dumps([header, *rows]).encode())
+
+
+def read_sheet_or_fixture(file: UploadedFile) -> ImportResult:
+    data = json.loads(file.content)
+    return import_sheet(data, file.name) if isinstance(data, list) else read_fixture(file)
+
+
+def test_hourly_report_of_known_metering_point_is_saved_and_archived(
+    repository: InMemoryRepository, archive: FileArchive
+) -> None:
+    file = hourly_report_file("godzinowe.xlsx", HOME.ppe_number, (1, 0.25), (2, 0.5))
+
+    summary = import_files(repository, archive, [file], read=read_sheet_or_fixture)
+
+    (imported,) = summary.imported
+    assert imported.kind is DocumentKind.HOURLY_VALUES_REPORT
+    assert imported.invoice_number == "01.10.2025–01.10.2025"
+    assert imported.new_hours == 2
+    assert [r.imported_kwh for r in repository.list_hourly_readings(HOME.ppe_number)] == [
+        Decimal("0.25"),
+        Decimal("0.5"),
+    ]
+    assert archive.path(imported.archive_name).read_bytes() == file.content
+
+
+def test_overlapping_hourly_report_adds_only_new_hours(
+    repository: InMemoryRepository, archive: FileArchive
+) -> None:
+    first = hourly_report_file("wrzesień.xlsx", HOME.ppe_number, (1, 0.25), (2, 0.5))
+    import_files(repository, archive, [first], read=read_sheet_or_fixture)
+    second = hourly_report_file("październik.xlsx", HOME.ppe_number, (2, 0.5), (3, 0.75))
+
+    summary = import_files(repository, archive, [second], read=read_sheet_or_fixture)
+
+    assert [f.new_hours for f in summary.imported] == [1]
+    assert len(repository.list_hourly_readings(HOME.ppe_number)) == 3
+
+
+def test_hourly_report_of_unknown_metering_point_is_rejected(
+    repository: InMemoryRepository, archive: FileArchive
+) -> None:
+    file = hourly_report_file("godzinowe.xlsx", FLAT_PPE, (1, 0.25))
+
+    summary = import_files(repository, archive, [file], read=read_sheet_or_fixture)
+
+    assert summary.imported == []
+    (rejected,) = summary.rejected
+    assert "punktu poboru, którego nie ma w aplikacji" in rejected.reason
+    assert repository.list_hourly_readings(FLAT_PPE) == []

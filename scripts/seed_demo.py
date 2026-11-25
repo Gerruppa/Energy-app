@@ -1,7 +1,7 @@
 """Osobny katalog danych z Fakturami, do oglądania ekranów bez ruszania ``data/``.
 
     uv run python scripts/seed_demo.py KATALOG             # fixture'y z tests/fixtures
-    uv run python scripts/seed_demo.py KATALOG --references # prawdziwe PDF-y z References/
+    uv run python scripts/seed_demo.py KATALOG --references # prawdziwe pliki z References/
 
 Potem (PowerShell): ``$env:PV_APP_DATA_DIR = "KATALOG"; uv run python -m pv_app``.
 Pliki przechodzą przez ``import_files`` jak na stronie importu (duplikaty pomijane, kopie
@@ -18,7 +18,7 @@ from pv_app.app.batch_import import (
     UploadedFile,
     add_new_metering_point,
     import_files,
-    read_pdf,
+    read_file,
 )
 from pv_app.domain.invoice import SettlementType
 from pv_app.domain.metering_point import SiteIcon
@@ -43,13 +43,15 @@ def _report(summary: ImportSummary) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("data_dir", type=Path)
-    parser.add_argument("--references", action="store_true", help="prawdziwe PDF-y z References/")
+    parser.add_argument("--references", action="store_true", help="prawdziwe pliki z References/")
     args = parser.parse_args()
 
     paths: list[Path]
     read: Reader
     if args.references:
-        paths, read = sorted((ROOT / "References").rglob("*.pdf")), read_pdf
+        references = ROOT / "References"
+        paths = sorted([*references.rglob("*.pdf"), *references.rglob("*.xlsx")])
+        read = read_file
     else:
         paths, read = sorted((ROOT / "tests" / "fixtures").glob("*.json")), read_fixture
     files = [UploadedFile(p.name, p.read_bytes()) for p in paths]
@@ -73,11 +75,17 @@ def main() -> None:
                 charges_car=net_metering,
             )
             _report(continuation)
+        # Raport wartości godzinowych nieznanego PPE jest odrzucany; PPE dodaje dopiero kreator.
+        rejected = {skipped.file_name for skipped in summary.rejected}
+        retry = [f for f in files if f.name in rejected and f.name.endswith(".xlsx")]
+        _report(import_files(repository, archive, retry, read=read))
         for point in repository.list_metering_points():
             invoices = len(repository.list_invoices(point.ppe_number))
             notes = len(repository.list_debit_notes(point.ppe_number))
+            hours = len(repository.list_hourly_readings(point.ppe_number))
             print(
-                f"{point.name} (?ppe={point.slug}): {invoices} Faktur, {notes} Not obciążeniowych"
+                f"{point.name} (?ppe={point.slug}): {invoices} Faktur, "
+                f"{notes} Not obciążeniowych, {hours} godzin Profilu godzinowego"
             )
     finally:
         repository.close()

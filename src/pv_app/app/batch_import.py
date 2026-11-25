@@ -2,10 +2,12 @@
 
 Plik przechodzi kolejno: duplikat po hashu → odczyt (``ingest``) → duplikat po numerze
 Faktury (Noty obciążeniowej) → PPE znany? Faktura znanego PPE trafia do bazy, a plik do
-archiwum. Faktury nieznanego PPE czekają w ``NewMeteringPoint``, aż użytkownik doda PPE
-w kreatorze (``add_new_metering_point``). Nota obciążeniowa nie ma danych do kreatora, więc
-Nota nieznanego PPE czeka tylko razem z jego Fakturami z tej samej paczki (w dowolnej
-kolejności plików); inaczej jest odrzucana.
+archiwum. Raport wartości godzinowych znanego PPE dopisuje godziny do Profilu godzinowego
+(godziny z wcześniejszych raportów dostają nowsze wartości); nieznanego PPE jest odrzucany,
+bo PPE dodaje się z Faktury. Faktury nieznanego PPE czekają w ``NewMeteringPoint``, aż
+użytkownik doda PPE w kreatorze (``add_new_metering_point``). Nota obciążeniowa nie ma danych
+do kreatora, więc Nota nieznanego PPE czeka tylko razem z jego Fakturami z tej samej paczki
+(w dowolnej kolejności plików); inaczej jest odrzucana.
 """
 
 import hashlib
@@ -16,6 +18,7 @@ from io import BytesIO
 
 from pv_app.app.wizard import create_metering_point_from_invoice
 from pv_app.domain.debit_note import DebitNote
+from pv_app.domain.hourly_profile import HourlyValuesReport
 from pv_app.domain.invoice import DocumentKind, Invoice
 from pv_app.domain.metering_point import MeteringPoint, SiteIcon
 from pv_app.ingest import ImportResult, import_file
@@ -33,7 +36,7 @@ class UploadedFile:
         return hashlib.sha256(self.content).hexdigest()
 
 
-def read_pdf(file: UploadedFile) -> ImportResult:
+def read_file(file: UploadedFile) -> ImportResult:
     return import_file(BytesIO(file.content), file.name)
 
 
@@ -44,10 +47,12 @@ Reader = Callable[[UploadedFile], ImportResult]
 class ImportedFile:
     file_name: str
     invoice_number: str
-    """Numer Faktury albo Noty obciążeniowej."""
+    """Numer Faktury albo Noty obciążeniowej; dla Raportu wartości godzinowych zakres dni."""
     archive_name: str
     warnings: tuple[str, ...] = ()
     kind: DocumentKind = DocumentKind.SETTLEMENT_INVOICE
+    new_hours: int | None = None
+    """Raport wartości godzinowych: ile godzin Profilu godzinowego przybyło."""
 
 
 @dataclass(frozen=True)
@@ -138,6 +143,9 @@ class _ImportRun:
             self._skip_duplicate(file, f"Ten sam plik został już wgrany jako {duplicate_of}.")
             return
         result = read(file)
+        if result.hourly_report is not None:
+            self._add_hourly_report(file, result.hourly_report, result.warnings)
+            return
         if result.invoice is None and result.debit_note is None:
             self._reject(file, result.rejection or "Nie udało się odczytać Faktury.")
             return
@@ -213,6 +221,32 @@ class _ImportRun:
             )
         )
 
+    def _add_hourly_report(
+        self, file: UploadedFile, report: HourlyValuesReport, warnings: tuple[str, ...]
+    ) -> None:
+        if report.ppe_number not in self._known_points:
+            self._reject(
+                file,
+                "Raport wartości godzinowych dotyczy punktu poboru, którego nie ma w aplikacji. "
+                "Dodaj go najpierw, wgrywając jego Fakturę, a potem wgraj raport ponownie.",
+            )
+            return
+        archive_name = self._archive.store(file.name, file.content, file.sha256)
+        new_hours = self._repository.add_hourly_readings(report.readings)
+        self._repository.add_source_file(
+            SourceFile(file.sha256, file.name, archive_name, report.label)
+        )
+        self.summary.imported.append(
+            ImportedFile(
+                file.name,
+                report.label,
+                archive_name,
+                warnings,
+                DocumentKind.HOURLY_VALUES_REPORT,
+                new_hours,
+            )
+        )
+
     def _wait(self, waiting: WaitingFile) -> None:
         self._unsaved_by_hash[waiting.file.sha256] = waiting.file.name
         self._waiting_numbers.add(waiting.document.number)
@@ -228,7 +262,7 @@ def import_files(
     archive: FileArchive,
     files: Iterable[UploadedFile],
     *,
-    read: Reader = read_pdf,
+    read: Reader = read_file,
 ) -> ImportSummary:
     """Importuje pliki po kolei; duplikaty i odrzucone Faktury nie zmieniają bazy."""
     run = _ImportRun(repository, archive)

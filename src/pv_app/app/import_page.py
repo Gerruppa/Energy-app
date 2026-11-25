@@ -1,4 +1,5 @@
-"""Strona „Wgraj Faktury”: wiele PDF-ów naraz → podsumowanie i pytanie o nowe PPE."""
+"""Strona „Wgraj pliki”: wiele PDF-ów Faktur i Raportów wartości godzinowych (xlsx) naraz →
+podsumowanie i pytanie o nowe PPE."""
 
 import streamlit as st
 
@@ -16,18 +17,23 @@ _UPLOADER_ROUND = "import_uploader_round"
 
 
 def render_import_page(repository: Repository, archive: FileArchive) -> None:
-    st.title("Wgraj Faktury")
+    st.title("Wgraj pliki")
     st.write(
         "Wybierz jeden lub wiele PDF-ów Faktur Tauron (także korygujących) i Not "
-        "obciążeniowych. Pliki i dokumenty, które już są w aplikacji, zostaną pominięte."
+        "obciążeniowych albo Raport wartości godzinowych (xlsx) od Tauron Dystrybucji. "
+        "Pliki i dokumenty, które już są w aplikacji, zostaną pominięte; godziny z raportu, "
+        "które już są w aplikacji, dostaną wartości z nowszego raportu."
     )
     round_ = st.session_state.setdefault(_UPLOADER_ROUND, 0)
     uploads = st.file_uploader(
-        "Faktury (PDF)", type="pdf", accept_multiple_files=True, key=f"uploads_{round_}"
+        "Faktury (PDF) i Raporty wartości godzinowych (xlsx)",
+        type=["pdf", "xlsx"],
+        accept_multiple_files=True,
+        key=f"uploads_{round_}",
     )
     if st.button("Wgraj", type="primary", disabled=not uploads):
         files = [UploadedFile(u.name, u.getvalue()) for u in uploads or []]
-        with st.spinner("Odczytuję Faktury…"):
+        with st.spinner("Odczytuję pliki…"):
             st.session_state[IMPORT_SUMMARY] = import_files(repository, archive, files)
         # Nowy klucz czyści listę wybranych plików, żeby nie wgrać ich drugi raz.
         st.session_state[_UPLOADER_ROUND] = round_ + 1
@@ -69,6 +75,11 @@ def render_summary(summary: ImportSummary) -> None:
     for skipped in summary.duplicates:
         st.info(f"**{skipped.file_name}**: {skipped.reason}")
     for file in summary.imported:
-        st.success(f"**{file.file_name}**: {file.kind.value} {file.invoice_number}")
+        details = (
+            ""
+            if file.new_hours is None
+            else f" (nowe godziny: {file.new_hours:,})".replace(",", " ")
+        )
+        st.success(f"**{file.file_name}**: {file.kind.value} {file.invoice_number}{details}")
         for warning in file.warnings:
             st.warning(f"**{file.file_name}**: {warning}")

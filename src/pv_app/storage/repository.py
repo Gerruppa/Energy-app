@@ -1,7 +1,9 @@
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Protocol
 
 from pv_app.domain.debit_note import DebitNote
+from pv_app.domain.hourly_profile import HourlyReading
 from pv_app.domain.invoice import Invoice
 from pv_app.domain.metering_point import MeteringPoint
 
@@ -16,7 +18,8 @@ class SourceFile:
     archive_name: str
     """Nazwa kopii w archiwum (``FileArchive``)."""
     invoice_number: str
-    """Numer Faktury albo Noty obciążeniowej z tego pliku."""
+    """Numer Faktury albo Noty obciążeniowej z tego pliku; dla Raportu wartości godzinowych
+    jego zakres dni (``HourlyValuesReport.label``)."""
 
 
 class Repository(Protocol):
@@ -48,4 +51,13 @@ class Repository(Protocol):
 
     def find_source_file_for(self, document_number: str) -> SourceFile | None:
         """Wgrany plik Faktury albo Noty obciążeniowej o tym numerze."""
+        ...
+
+    def add_hourly_readings(self, readings: Iterable[HourlyReading]) -> int:
+        """Zapisuje godziny Profilu godzinowego; godzina już zapisana (ten sam PPE, koniec
+        godziny i ``extra_hour``) dostaje nowe wartości. Zwraca liczbę nowych godzin."""
+        ...
+
+    def list_hourly_readings(self, ppe_number: str) -> list[HourlyReading]:
+        """Profil godzinowy PPE od najstarszej godziny."""
         ...

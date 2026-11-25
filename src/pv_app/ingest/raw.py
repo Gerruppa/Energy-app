@@ -7,6 +7,10 @@ from pathlib import Path
 Row = tuple[str, ...]
 """Wiersz strony podzielony na komórki tabeli po położeniu znaków (odstęp między kolumnami)."""
 
+SheetCell = str | float | None
+SheetRow = tuple[SheetCell, ...]
+"""Wiersz arkusza xlsx: tekst, liczba (także data jako liczba seryjna Excela) albo pusta komórka."""
+
 
 @dataclass(frozen=True)
 class RawPage:

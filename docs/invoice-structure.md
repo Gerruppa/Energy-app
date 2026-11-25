@@ -88,3 +88,15 @@ Parser: `src/pv_app/ingest/new_layout.py`. Sprawdzony lokalnie na wszystkich Fak
 - **Opust:** Faktura nie podaje go wprost. Liczony jako Energia pobrana minus kWh energii czynnej na Fakturze; bilans Magazynu energii: start + przyrost (po Współczynniku opustu) − Opust = koniec.
 - **Kontrola sum:** suma brutto Pozycji = podsumowanie sprzedaży, dystrybucji i Wynik rozliczenia (tolerancja 0,02 zł); Do zapłaty = Wynik + Prognoza z poprzedniej Faktury − wpłaty dodatkowe; bilans Magazynu energii z tolerancją 2 kWh. Na prawdziwych Fakturach kwoty zgadzają się co do grosza, a Magazyn energii różni się najwyżej o 1 kWh (bilansowanie godzinowe).
 - **Podstawa rozliczenia:** szacunkowy Typ odczytu na którymkolwiek liczniku (pobór lub oddanie) oznacza odczyt szacunkowy dla całej Faktury.
+
+## Raport wartości godzinowych (xlsx, Tauron Dystrybucja)
+
+Nie Faktura, tylko Profil godzinowy jednego PPE; czyta go `ingest/xlsx_adapter.py` (xlsx → wiersze komórek) i `ingest/hourly_report.py` (wiersze → `HourlyValuesReport`).
+
+- Wiersz 1: tytuł „Raport wartości godzinowych dla wskazanego PPE”, wiersz 3: nagłówek, od wiersza 4 jedna godzina na wiersz. Kolumny: PPE, „Flaga prosum.”, Godz., „Godz dodat”, Energia pobrana i oddana przed zbilansowaniem (ECP, ECO) i po nim (ECBP, ECBO) w kWh, energia bierna (EBI, EBP, zwykle puste). Parser wybiera kolumny po tych oznaczeniach.
+- Godz. to data i czas zapisane przez Excela jako liczba seryjna (dni od 30.12.1899), wyświetlana jako `m/d/yyyy h:mm:ss AM/PM`; „10.1.2024” to 1 października, nie 10 stycznia.
+- Godzina oznaczona końcem: pierwszy wiersz dnia to `1:00`, `0:00` zamyka poprzedni dzień.
+- Zmiana czasu: w październiku `3:00` występuje dwa razy, druga ma „Godz dodat” = 1; w marcu brakuje `2:00`.
+- kWh z dokładnością do 1 Wh (format `0.000`); w pliku zapisane jako liczby zmiennoprzecinkowe (`0.17299999999999999`), parser zaokrągla do 3 miejsc.
+- Faktura rozlicza ilości po Zbilansowaniu godzinowym (ECBP, ECBO); ilości przed zbilansowaniem są wyraźnie wyższe.
+- Teksty (PPE, „0”/„1” w „Godz dodat”) leżą we wspólnej tabeli tekstów skoroszytu.

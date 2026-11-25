@@ -2,7 +2,7 @@
 
 Lokalny dashboard kosztów i zużycia energii elektrycznej, zbudowany na fakturach Tauron. PPE dodaje się w aplikacji; dziś są dwa: **Dom** (fotowoltaika w net-meteringu, Współczynnik opustu 0.8; oglądają go rodzice użytkownika) i **Mieszkanie**. Od 2027 dochodzi ładowanie auta plug-in w Domu.
 
-Dane wchodzą wsadowo, co 1–4 tygodnie: PDF-y faktur oraz eksport z eLicznika. Projekt działa bez danych na żywo (ADR 0002).
+Dane wchodzą wsadowo, co 1–4 tygodnie: PDF-y faktur oraz Raport wartości godzinowych (xlsx od Tauron Dystrybucji). Projekt działa bez danych na żywo (ADR 0002).
 
 **Stan:** specyfikacja MVP to issue #1; zadania to jego sub-issues #2–#13 z zależnościami „blocked by” w GitHubie. Docelowy wygląd: prototyp `data/prototype-dashboard/index.html`, wariant D (lokalny, poza gitem, z prawdziwymi danymi — wzór wyglądu, nie kod do skopiowania).
 
@@ -43,7 +43,7 @@ Python i biblioteki zarządza `uv` (ADR 0001). Gdy `uv` nie jest w PATH (sesja o
 - Testy: `uv run pytest`; pojedynczy plik: `uv run pytest tests/test_repository.py`. Import na prawdziwych PDF-ach z `References/` (ok. 30 s, poza domyślnym zestawem): `uv run pytest -m real_pdfs`.
 - Hook prywatności w nowej kopii repozytorium: `git config core.hooksPath .githooks`.
 - Wiersze PDF-a tak, jak widzi je parser: `uv run python scripts/dump_raw.py PLIK.pdf [--page N] [--grep WZORZEC] [--json SZKIELET.json]`; `--cells` pokazuje i zapisuje komórki tabel (stary układ).
-- Dane do oglądania ekranów bez ruszania `data/`: `uv run python scripts/seed_demo.py demo-data [--references]`, potem podgląd „demo” albo `uv run python -m pv_app --data-dir demo-data --port 8502 --no-browser`.
+- Dane do oglądania ekranów bez ruszania `data/`: `uv run python scripts/seed_demo.py demo-data [--references]` (`--references`: PDF-y i Raporty wartości godzinowych xlsx), potem podgląd „demo” albo `uv run python -m pv_app --data-dir demo-data --port 8502 --no-browser`.
 - Wydruk „Faktura po ludzku” (przy działającej aplikacji na tych danych): `uv run python scripts/print_check.py demo-data [--ppe SLUG] [--keep KATALOG_PDF]`; kod wyjścia 1, gdy Faktura nie mieści się na 1 stronie A4.
 - Typy i styl: `uv run mypy`, `uv run ruff check .`, `uv run ruff format .`.
 - CI: `.github/workflows/tests.yml` uruchamia ruff, mypy i pytest na Windows przy każdym pushu na `main`.

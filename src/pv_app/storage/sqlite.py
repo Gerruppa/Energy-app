@@ -1,7 +1,11 @@
 import sqlite3
+from collections.abc import Iterable
+from datetime import datetime
+from decimal import Decimal
 from pathlib import Path
 
 from pv_app.domain.debit_note import DebitNote
+from pv_app.domain.hourly_profile import HourlyReading
 from pv_app.domain.invoice import Invoice
 from pv_app.domain.metering_point import MeteringPoint, SiteIcon
 from pv_app.storage.codec import from_json, to_json
@@ -45,6 +49,18 @@ _MIGRATIONS = (
         payload    TEXT NOT NULL
     );
     CREATE INDEX debit_note_by_ppe ON debit_note (ppe_number, issue_date);
+    """,
+    """
+    CREATE TABLE hourly_reading (
+        ppe_number              TEXT NOT NULL,
+        hour_end                TEXT NOT NULL,
+        extra_hour              INTEGER NOT NULL,
+        imported_kwh            TEXT NOT NULL,
+        exported_kwh            TEXT NOT NULL,
+        unbalanced_imported_kwh TEXT NOT NULL,
+        unbalanced_exported_kwh TEXT NOT NULL,
+        PRIMARY KEY (ppe_number, hour_end, extra_hour)
+    ) WITHOUT ROWID;
     """,
 )
 """Kolejne wersje schematu; ``PRAGMA user_version`` mówi, ile już wykonano."""
@@ -183,3 +199,53 @@ class SqliteRepository:
             (document_number,),
         ).fetchone()
         return SourceFile(*row) if row else None
+
+    def add_hourly_readings(self, readings: Iterable[HourlyReading]) -> int:
+        with self._connection:
+            before = self._count_hourly_readings()
+            self._connection.executemany(
+                "INSERT INTO hourly_reading (ppe_number, hour_end, extra_hour, imported_kwh,"
+                " exported_kwh, unbalanced_imported_kwh, unbalanced_exported_kwh)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?)"
+                " ON CONFLICT (ppe_number, hour_end, extra_hour) DO UPDATE SET"
+                " imported_kwh = excluded.imported_kwh, exported_kwh = excluded.exported_kwh,"
+                " unbalanced_imported_kwh = excluded.unbalanced_imported_kwh,"
+                " unbalanced_exported_kwh = excluded.unbalanced_exported_kwh",
+                (
+                    (
+                        r.ppe_number,
+                        r.hour_end.isoformat(),
+                        r.extra_hour,
+                        str(r.imported_kwh),
+                        str(r.exported_kwh),
+                        str(r.unbalanced_imported_kwh),
+                        str(r.unbalanced_exported_kwh),
+                    )
+                    for r in readings
+                ),
+            )
+            return self._count_hourly_readings() - before
+
+    def _count_hourly_readings(self) -> int:
+        (count,) = self._connection.execute("SELECT COUNT(*) FROM hourly_reading").fetchone()
+        return int(count)
+
+    def list_hourly_readings(self, ppe_number: str) -> list[HourlyReading]:
+        rows = self._connection.execute(
+            "SELECT ppe_number, hour_end, extra_hour, imported_kwh, exported_kwh,"
+            " unbalanced_imported_kwh, unbalanced_exported_kwh FROM hourly_reading"
+            " WHERE ppe_number = ? ORDER BY hour_end, extra_hour",
+            (ppe_number,),
+        ).fetchall()
+        return [
+            HourlyReading(
+                ppe_number=r[0],
+                hour_end=datetime.fromisoformat(r[1]),
+                extra_hour=bool(r[2]),
+                imported_kwh=Decimal(r[3]),
+                exported_kwh=Decimal(r[4]),
+                unbalanced_imported_kwh=Decimal(r[5]),
+                unbalanced_exported_kwh=Decimal(r[6]),
+            )
+            for r in rows
+        ]

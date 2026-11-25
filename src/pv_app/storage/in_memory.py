@@ -1,4 +1,8 @@
+from collections.abc import Iterable
+from datetime import datetime
+
 from pv_app.domain.debit_note import DebitNote
+from pv_app.domain.hourly_profile import HourlyReading
 from pv_app.domain.invoice import Invoice
 from pv_app.domain.metering_point import MeteringPoint
 from pv_app.storage.repository import SourceFile
@@ -12,6 +16,7 @@ class InMemoryRepository:
         self._invoices: list[Invoice] = []
         self._debit_notes: list[DebitNote] = []
         self._source_files: dict[str, SourceFile] = {}
+        self._hourly_readings: dict[tuple[str, datetime, bool], HourlyReading] = {}
 
     def add_metering_point(self, metering_point: MeteringPoint) -> None:
         self._metering_points.append(metering_point)
@@ -53,4 +58,16 @@ class InMemoryRepository:
         return next(
             (f for f in self._source_files.values() if f.invoice_number == document_number),
             None,
+        )
+
+    def add_hourly_readings(self, readings: Iterable[HourlyReading]) -> int:
+        before = len(self._hourly_readings)
+        for reading in readings:
+            self._hourly_readings[reading.key] = reading
+        return len(self._hourly_readings) - before
+
+    def list_hourly_readings(self, ppe_number: str) -> list[HourlyReading]:
+        return sorted(
+            (r for r in self._hourly_readings.values() if r.ppe_number == ppe_number),
+            key=lambda r: (r.hour_end, r.extra_hour),
         )

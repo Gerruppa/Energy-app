@@ -37,6 +37,8 @@ class DocumentKind(StrEnum):
     SETTLEMENT_INVOICE = "Faktura rozliczeniowa"
     CORRECTING_INVOICE = "Faktura korygująca"
     DEBIT_NOTE = "Nota obciążeniowa"
+    HOURLY_VALUES_REPORT = "Raport wartości godzinowych"
+    """Nie Faktura: plik z Profilem godzinowym, wymieniany w podsumowaniu importu."""
 
 
 class Layout(StrEnum):

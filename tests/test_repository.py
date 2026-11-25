@@ -4,12 +4,14 @@ import json
 import sqlite3
 from collections.abc import Iterator
 from dataclasses import replace
-from datetime import date
+from datetime import date, datetime
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
 
 from pv_app.domain.debit_note import DebitNote
+from pv_app.domain.hourly_profile import HourlyReading
 from pv_app.domain.invoice import DateRange, Invoice
 from pv_app.domain.metering_point import MeteringPoint, SiteIcon
 from pv_app.ingest import import_document
@@ -181,3 +183,42 @@ def test_invoice_saved_before_corrections_existed_is_read_back(tmp_path: Path) -
     repo = SqliteRepository(path)
     assert repo.list_invoices(invoice.header.ppe_number) == [invoice]
     repo.close()
+
+
+def hour(
+    day: int, hour_end: int, imported: str, *, extra: bool = False, ppe: str = HOME.ppe_number
+) -> HourlyReading:
+    return HourlyReading(
+        ppe_number=ppe,
+        hour_end=datetime(2025, 10, day, hour_end),
+        extra_hour=extra,
+        imported_kwh=Decimal(imported),
+        exported_kwh=Decimal("1.25"),
+        unbalanced_imported_kwh=Decimal(imported),
+        unbalanced_exported_kwh=Decimal("1.5"),
+    )
+
+
+def test_hourly_readings_are_listed_per_metering_point_in_time_order(
+    repository: Repository,
+) -> None:
+    later, extra, earlier = hour(26, 3, "0.4", extra=True), hour(26, 3, "0.3"), hour(1, 1, "0.1")
+    other = hour(1, 1, "0.9", ppe="590000000000000002")
+
+    added = repository.add_hourly_readings([later, extra, earlier, other])
+
+    assert added == 4
+    assert repository.list_hourly_readings(HOME.ppe_number) == [earlier, extra, later]
+
+
+def test_newer_report_replaces_values_of_the_same_hour(repository: Repository) -> None:
+    repository.add_hourly_readings([hour(1, 1, "0.1"), hour(1, 2, "0.2")])
+
+    added = repository.add_hourly_readings([hour(1, 2, "0.25"), hour(1, 3, "0.3")])
+
+    assert added == 1
+    assert [r.imported_kwh for r in repository.list_hourly_readings(HOME.ppe_number)] == [
+        Decimal("0.1"),
+        Decimal("0.25"),
+        Decimal("0.3"),
+    ]
