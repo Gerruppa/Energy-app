@@ -25,7 +25,7 @@ Repozytorium, issues i PR-y są publiczne. Hook `.githooks/pre-commit` uruchamia
 
 Każde issue to osobna sesja zaczynana po `/clear`. Wszystko, czego sesja potrzebuje, jest w issue, w tym pliku i w dokumentach z mapy.
 
-1. Przeczytaj issue (`gh issue view N --comments`) i sprawdź, że jego blokery są zamknięte (`gh api repos/Gerruppa/Energy-app/issues/N/dependencies/blocked_by`). Otwarty bloker = zatrzymaj się i powiedz użytkownikowi.
+1. Przeczytaj issue (`gh issue view N --comments`) i sprawdź, że jego blokery są zamknięte (w Bashu: `gh api repos/Gerruppa/Energy-app/issues/N/dependencies/blocked_by --jq '.[] | "\(.number) \(.state)"'`; PowerShell rozbija `--jq` na kilka argumentów). Otwarty bloker = zatrzymaj się i powiedz użytkownikowi.
 2. Pracuj na `main`: `git pull`, a stan roboczy musi być czysty, zanim zaczniesz.
 3. Przeczytaj dokumenty z mapy dla obszaru, który dotykasz.
 4. `/implement N`: `/tdd` na seamach importu i analiz (ADR 0005, `docs/architecture.md`), na koniec pełny zestaw testów (przy zmianach importu także `uv run pytest -m real_pdfs`) i `/mattpocock-skills:code-review`.
@@ -37,10 +37,10 @@ Gotowe, gdy testy są zielone, commit jest wypchnięty, a każde kryterium akcep
 
 ## Komendy
 
-Python i biblioteki zarządza `uv` (ADR 0001). Gdy `uv` nie jest w PATH (sesja otwarta przed instalacją), uruchom go pełną ścieżką `%LOCALAPPDATA%\Microsoft\WinGet\Links\uv.exe`. Python 3.14 (`.python-version`).
+Python i biblioteki zarządza `uv` (ADR 0001). Gdy `uv` nie jest w PATH (sesja otwarta przed instalacją), uruchom go pełną ścieżką `%LOCALAPPDATA%\Microsoft\WinGet\Links\uv.exe`. Python 3.14 (`.python-version`), zawsze przez `uv run python`: gołe `python` to zaślepka Microsoft Store.
 
 - Start aplikacji: dwuklik w `Start.bat` (przy pierwszym starcie instaluje uv i zależności) albo `uv run python -m pv_app`; adres `http://localhost:8501`.
-- Testy: `uv run pytest`; pojedynczy plik: `uv run pytest tests/test_repository.py`. Import na prawdziwych PDF-ach z `References/` (ok. 30 s, poza domyślnym zestawem): `uv run pytest -m real_pdfs`.
+- Testy: `uv run pytest`; pojedynczy plik: `uv run pytest tests/test_repository.py`. Import na prawdziwych PDF-ach z `References/` (ok. 4–5 min, poza domyślnym zestawem; uruchamiaj w tle): `uv run pytest -m real_pdfs`.
 - Hook prywatności w nowej kopii repozytorium: `git config core.hooksPath .githooks`.
 - Wiersze PDF-a tak, jak widzi je parser: `uv run python scripts/dump_raw.py PLIK.pdf [--page N] [--grep WZORZEC] [--json SZKIELET.json]`; `--cells` pokazuje i zapisuje komórki tabel (stary układ).
 - Dane do oglądania ekranów bez ruszania `data/`: `uv run python scripts/seed_demo.py demo-data [--references]` (`--references`: PDF-y i Raporty wartości godzinowych xlsx), potem podgląd „demo” albo `uv run python -m pv_app --data-dir demo-data --port 8502 --no-browser`.
