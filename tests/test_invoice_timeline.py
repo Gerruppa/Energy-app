@@ -5,11 +5,9 @@ from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 
-from factories import HOME, forecast, invoice_for
+from factories import HOME, correcting, forecast, invoice_for
 from pv_app.domain.debit_note import DebitNote, DebitNoteItem
 from pv_app.domain.invoice import (
-    Amount,
-    Correction,
     DateRange,
     DocumentKind,
     Invoice,
@@ -41,26 +39,6 @@ def estimated(invoice: Invoice) -> Invoice:
     return replace(
         invoice,
         readings=tuple(replace(r, reading_type=ReadingType.ESTIMATED) for r in invoice.readings),
-    )
-
-
-def correcting(original: Invoice, number: str) -> Invoice:
-    """Faktura korygująca ``original`` za ten sam Okres rozliczeniowy, na odczycie rzeczywistym."""
-    return replace(
-        original,
-        kind=DocumentKind.CORRECTING_INVOICE,
-        header=replace(original.header, number=number, issue_date=date(2026, 11, 10)),
-        readings=tuple(replace(r, reading_type=ReadingType.REMOTE) for r in original.readings),
-        correction=Correction(
-            corrected_invoice_number=original.number,
-            corrected_invoice_issue_date=original.header.issue_date,
-            reason="błędny odczyt",
-            charged_result=Amount(None, None, Decimal("0")),
-            charged_amount_due=Decimal("0"),
-            difference=Decimal("0"),
-            source=Source(number, 1),
-            difference_source=Source(number, 2),
-        ),
     )
 
 

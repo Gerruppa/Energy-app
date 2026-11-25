@@ -16,5 +16,5 @@ def zl(value: Decimal) -> str:
     return f"{_grouped(value, 2)} zł"
 
 
-def kwh(value: Decimal) -> str:
-    return f"{_grouped(value, 0)} kWh"
+def kwh(value: Decimal, decimals: int = 0) -> str:
+    return f"{_grouped(value, decimals)} kWh"

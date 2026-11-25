@@ -1,10 +1,12 @@
 """Powłoka Streamlit: co widzi użytkownik po starcie."""
 
 from dataclasses import replace
+from datetime import date
 from pathlib import Path
 
 from streamlit.testing.v1 import AppTest
 
+from factories import days
 from pv_app.app.settings import database_path
 from pv_app.domain.metering_point import MeteringPoint, SiteIcon
 from pv_app.domain.view_period import ViewPeriodKind
@@ -314,3 +316,25 @@ def test_data_page_from_sidebar_shows_timeline_and_invoice_list(app: AppTest) ->
     assert [b.label for b in app.button if b.label.startswith("Przebuduj")] == [
         "Przebuduj bazę z archiwum…"
     ]
+    assert "Profil godzinowy a Faktury" not in [h.value for h in app.subheader]
+
+
+def test_data_page_with_hourly_profile_compares_it_with_invoices(app: AppTest) -> None:
+    invoice = import_document(
+        RawDocument.from_json(FIXTURES / "new_layout_net_metering_monthly.json")
+    ).invoice
+    assert invoice is not None
+    repo = SqliteRepository(database_path())
+    repo.add_metering_point(HOME)
+    repo.add_invoice(invoice)
+    repo.add_hourly_readings(days(date(2026, 10, 1), date(2026, 10, 20)))
+    repo.close()
+    app.run()
+
+    next(b for b in app.sidebar.button if b.label == "Dane").click().run()
+
+    assert not app.exception
+    assert "Profil godzinowy a Faktury" in [h.value for h in app.subheader]
+    table = app.dataframe[-1].value
+    assert list(table["Okres rozliczeniowy"]) == ["01.10.2026 – 31.10.2026"]
+    assert list(table["Porównanie"]) == ["brakuje 11 dni w Profilu godzinowym"]

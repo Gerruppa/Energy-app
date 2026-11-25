@@ -37,6 +37,22 @@ class HourlyReading:
         return (self.ppe_number, self.hour_end, self.extra_hour)
 
 
+def _last_sunday(year: int, month: int) -> date:
+    """Ostatnia niedziela miesiąca o 31 dniach (marzec, październik)."""
+    last = date(year, month, 31)
+    return last - timedelta(days=(last.weekday() + 1) % 7)
+
+
+def hours_in_day(day: date) -> int:
+    """Ile godzin ma doba w czasie polskim: 23 w ostatnią niedzielę marca (zmiana na czas
+    letni), 25 w ostatnią niedzielę października (na zimowy), inaczej 24."""
+    if day == _last_sunday(day.year, 3):
+        return 23
+    if day == _last_sunday(day.year, 10):
+        return 25
+    return 24
+
+
 @dataclass(frozen=True)
 class HourlyValuesReport:
     """Raport wartości godzinowych jednego PPE (plik od Tauron Dystrybucji)."""

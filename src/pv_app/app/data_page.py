@@ -1,17 +1,19 @@
-"""Strona „Dane” wybranego PPE: oś czasu Faktur (kompletność i wiarygodność danych), usunięcie
-Faktury i przebudowa bazy z archiwum plików.
+"""Strona „Dane” wybranego PPE: oś czasu Faktur (kompletność i wiarygodność danych), Profil
+godzinowy a Faktury, usunięcie Faktury i przebudowa bazy z archiwum plików.
 
 Otwierana z paska bocznego, nie jest zakładką: narzędzia porządkowe są dla osoby, która wgrywa
 pliki, a nie dla oglądających dashboard.
 """
 
 from datetime import date
+from decimal import Decimal
 from functools import partial
 
 import streamlit as st
 
 from pv_app.app.data_maintenance import delete_invoice, rebuild
 from pv_app.app.import_page import render_summary
+from pv_app.domain.invoice import SettlementBasis
 from pv_app.domain.view_period import month_index, month_label
 from pv_app.features import formatting as fmt
 from pv_app.features.base import FeatureContext
@@ -22,6 +24,13 @@ from pv_app.features.invoice_timeline.analysis import (
 )
 from pv_app.features.invoice_timeline.chart import timeline_figure
 from pv_app.features.navigation import open_invoice
+from pv_app.features.profile_comparison.analysis import (
+    THRESHOLD_PERCENT,
+    EnergyComparison,
+    PeriodComparison,
+    ProfileComparison,
+    profile_comparison,
+)
 from pv_app.storage.archive import FileArchive
 
 DATA_PAGE = "data_page"
@@ -78,6 +87,9 @@ def render_data_page(context: FeatureContext, archive: FileArchive, today: date)
     else:
         _render_timeline(timeline, today)
         _render_invoices(context, archive, timeline)
+        comparison = profile_comparison(context.repository, point.ppe_number)
+        if comparison is not None:
+            _render_profile_comparison(comparison)
     _render_rebuild(context, archive)
 
 
@@ -212,6 +224,91 @@ def _confirmed(key: str, question: str, yes: str) -> bool:
         st.session_state.pop(key, None)
         st.rerun()
     return False
+
+
+def _kwh(value: Decimal) -> str:
+    return fmt.kwh(value, decimals=1)
+
+
+def _difference(comparison: EnergyComparison | None) -> str:
+    if comparison is None:
+        return ""
+    sign = "+" if comparison.difference_kwh > 0 else ""
+    text = f"{sign}{_kwh(comparison.difference_kwh)}"
+    if (percent := comparison.difference_percent) is not None:
+        rounded = round(percent, 1)
+        shown = f"{rounded:+.1f}" if rounded else "0.0"
+        text += f" ({shown.replace('.', ',')}%)"
+    return text
+
+
+def _status(period: PeriodComparison) -> str:
+    if period.missing_days:
+        days = "dnia" if period.missing_days == 1 else "dni"
+        return f"brakuje {period.missing_days} {days} w Profilu godzinowym"
+    return "🔴 do sprawdzenia" if period.to_check else "🟢 zgodne"
+
+
+def _both(comparison: EnergyComparison | None) -> str:
+    """„120,0 / 121,5 kWh”: z Faktury, z Profilu godzinowego."""
+    if comparison is None:
+        return ""
+    invoice = _kwh(comparison.invoice_kwh).removesuffix(" kWh")
+    return f"{invoice} / {_kwh(comparison.profile_kwh)}"
+
+
+def _comparison_entry(period: PeriodComparison) -> dict[str, object]:
+    return {
+        "Okres rozliczeniowy": fmt.period(period.period),
+        "Energia pobrana: Faktura / Profil": _both(period.imported),
+        "Różnica pobranej": _difference(period.imported),
+        "Energia oddana: Faktura / Profil": _both(period.exported),
+        "Różnica oddanej": _difference(period.exported),
+        "Porównanie": _status(period),
+    }
+
+
+def _to_check_message(period: PeriodComparison) -> str:
+    parts = [
+        f"{name} {_difference(c)}"
+        for name, c in (("Energia pobrana", period.imported), ("Energia oddana", period.exported))
+        if c is not None and c.exceeds_threshold
+    ]
+    causes = [
+        "granice okresu (Faktura liczy od odczytu licznika, który nie musi przypadać o północy)",
+        "brakujące albo powtórzone godziny w Raporcie wartości godzinowych",
+    ]
+    if period.basis is SettlementBasis.ESTIMATED_READING:
+        causes.insert(0, "odczyt szacunkowy: Tauron oszacował stan licznika na tej Fakturze")
+    else:
+        causes.append("odczyt szacunkowy na sąsiedniej Fakturze, wyrównany w tym okresie")
+    return (
+        f"Do sprawdzenia: {fmt.period(period.period)}, Faktura {period.invoice_number} "
+        f"({fmt.source(period.energy_source)}): Profil godzinowy różni się o "
+        f"{'; '.join(parts)}. Możliwe przyczyny: {'; '.join(causes)}."
+    )
+
+
+def _render_profile_comparison(comparison: ProfileComparison) -> None:
+    st.subheader("Profil godzinowy a Faktury")
+    st.caption(
+        "Energia pobrana i oddana z Faktury obok sum Profilu godzinowego po Zbilansowaniu "
+        "godzinowym, dla każdego Okresu rozliczeniowego (bez Faktur zastąpionych). Liczby "
+        "na dashboardzie biorą kWh z Faktur; różnicy nie wyrównujemy, tylko ją pokazujemy. "
+        f"Różnica powyżej {fmt.decimal_pl(THRESHOLD_PERCENT)}% oznacza okres do sprawdzenia."
+    )
+    if comparison.periods:
+        st.dataframe([_comparison_entry(p) for p in reversed(comparison.periods)], hide_index=True)
+    else:
+        st.info("Profil godzinowy nie obejmuje żadnego dnia z Okresów rozliczeniowych Faktur.")
+    for period in comparison.periods:
+        if period.to_check:
+            st.warning(_to_check_message(period))
+    if comparison.without_profile:
+        st.caption(
+            f"Okresy rozliczeniowe bez żadnego dnia w Profilu godzinowym: "
+            f"{comparison.without_profile} (pominięte)."
+        )
 
 
 def _render_rebuild(context: FeatureContext, archive: FileArchive) -> None:
