@@ -7,7 +7,7 @@ from datetime import date
 from decimal import Decimal
 
 from pv_app.domain.energy_store import EnergyStore, StoreState
-from pv_app.domain.invoice import DateRange, Invoice, Source
+from pv_app.domain.invoice import DateRange, Forecast, Invoice, Source
 from pv_app.domain.monthly_split import MonthShare, split_into_months
 from pv_app.domain.period_cost import PeriodCosts
 from pv_app.domain.view_period import first_day, last_day, month_index
@@ -179,6 +179,11 @@ AVERAGE_MONTH_DAYS = Decimal("30.44")
 """Średnia długość miesiąca: średnia miesięczna Faktury = suma / dni × 30,44."""
 
 
+def _per_month(total: Decimal, period: DateRange, single_month: bool) -> Decimal:
+    """Wysokość na wykresie: suma dla miesiąca z własną Fakturą, inaczej średnia miesięczna."""
+    return total if single_month else total / period.days * AVERAGE_MONTH_DAYS
+
+
 @dataclass(frozen=True)
 class ChartBlock:
     """Faktura na wykresie miesiąc po miesiącu: słupek (miesiąc z własną Fakturą) albo płaski
@@ -223,7 +228,7 @@ def _block(invoice: Invoice, year_earlier: bool) -> ChartBlock:
     single = month_index(period.start) == month_index(period.end)
 
     def per_month(total: Decimal) -> Decimal:
-        return total if single else total / period.days * AVERAGE_MONTH_DAYS
+        return _per_month(total, period, single)
 
     exported = invoice.exported_kwh
     return ChartBlock(
@@ -249,23 +254,35 @@ def energy_chart(repository: Repository, filters: Filters) -> EnergyChart | None
     history = _History(repository, filters.ppe_number)
     if not history.invoices:
         return None
-    first = min(month_index(i.header.billing_period.start) for i in history.invoices)
-    last = max(month_index(i.header.billing_period.end) for i in history.invoices)
-    period = filters.view_period
-    dates = period.dates
+    first, last = _invoice_months(history)
+    dates = filters.view_period.dates
     if dates is None:
         months = range(first, last + 1)
         selected = months
     else:
         selected = _months(dates)
         months = range(min(selected[0], selected[-1] - 11), selected[-1] + 1)
+    return _chart(history, months, selected, with_year_earlier=True)
+
+
+def _invoice_months(history: _History) -> tuple[int, int]:
+    """Pierwszy i ostatni miesiąc objęty Fakturami."""
+    first = min(month_index(i.header.billing_period.start) for i in history.invoices)
+    last = max(month_index(i.header.billing_period.end) for i in history.invoices)
+    return first, last
+
+
+def _chart(
+    history: _History, months: range, selected: range, *, with_year_earlier: bool
+) -> EnergyChart:
+    first, last = _invoice_months(history)
     window = DateRange(first_day(months[0]), last_day(months[-1]))
 
     def visible(block: ChartBlock) -> bool:
         return window.overlaps(block.drawn)
 
     blocks = [_block(i, year_earlier=False) for i in history.invoices]
-    earlier = [_block(i, year_earlier=True) for i in history.invoices]
+    earlier = [_block(i, year_earlier=True) for i in history.invoices] if with_year_earlier else []
     with_invoice = {s.month for s in history.shares}
     return EnergyChart(
         months=tuple(months),
@@ -273,6 +290,91 @@ def energy_chart(repository: Repository, filters: Filters) -> EnergyChart | None
         blocks=tuple(b for b in blocks if visible(b)),
         year_earlier=tuple(b for b in earlier if visible(b)),
         missing_months=tuple(m for m in months if first <= m <= last and m not in with_invoice),
+    )
+
+
+FORECAST_MONTHS_AHEAD = 12
+"""Ile miesięcy Prognoz po Okresie widoku pokazuje wykres Prognoz."""
+
+
+@dataclass(frozen=True)
+class ForecastLine:
+    """Prognoza z harmonogramu jako przerywana linia na wysokości średniej miesięcznej."""
+
+    forecast_number: str
+    invoice_number: str
+    """Faktura, której harmonogram zawiera tę Prognozę."""
+    period: DateRange
+    import_kwh: Decimal
+    per_month: Decimal
+    single_month: bool
+    gross: Decimal
+    due_date: date
+    source: Source
+
+
+@dataclass(frozen=True)
+class ForecastChart:
+    """Prognozy Taurona a rzeczywistość: Faktury jak na wykresie miesiąc po miesiącu (bez
+    roku wcześniej) i Prognozy z harmonogramów. Prognozy są tylko liniami: nie wchodzą do
+    Kosztu okresu ani kWh."""
+
+    energy: EnergyChart
+    forecasts: tuple[ForecastLine, ...]
+
+
+def _forecast_line(invoice: Invoice, forecast: Forecast) -> ForecastLine:
+    period = forecast.period
+    single = month_index(period.start) == month_index(period.end)
+    per_month = _per_month(forecast.import_kwh, period, single)
+    return ForecastLine(
+        forecast_number=forecast.number,
+        invoice_number=invoice.number,
+        period=period,
+        import_kwh=forecast.import_kwh,
+        per_month=per_month,
+        single_month=single,
+        gross=forecast.gross,
+        due_date=forecast.due_date,
+        source=forecast.source,
+    )
+
+
+def _current_forecasts(invoices: list[Invoice]) -> list[ForecastLine]:
+    """Prognozy z harmonogramów; Prognozę zastępuje Prognoza na ten sam czas z później
+    wystawionej Faktury (nowszy harmonogram)."""
+    lines = []
+    for invoice in invoices:
+        newer = [i for i in invoices if i.header.issue_date > invoice.header.issue_date]
+        for forecast in invoice.forecasts:
+            replaced = any(forecast.period.overlaps(f.period) for i in newer for f in i.forecasts)
+            if not replaced:
+                lines.append(_forecast_line(invoice, forecast))
+    return sorted(lines, key=lambda line: line.period.start)
+
+
+def forecast_chart(repository: Repository, filters: Filters) -> ForecastChart | None:
+    """Prognozy Taurona a rzeczywistość; ``None`` bez Faktur albo bez Prognoz.
+
+    Okno: 12 miesięcy do końca Okresu widoku i Prognozy do 12 miesięcy po nim, w granicach
+    danych; cały okres od pierwszej Faktury do ostatniej Prognozy."""
+    history = _History(repository, filters.ppe_number)
+    forecasts = _current_forecasts(history.invoices)
+    if not history.invoices or not forecasts:
+        return None
+    first, last = _invoice_months(history)
+    last = max(last, *(month_index(f.period.end) for f in forecasts))
+    dates = filters.view_period.dates
+    if dates is None:
+        selected = months = range(first, last + 1)
+    else:
+        selected = _months(dates)
+        end = max(selected[-1], min(last, selected[-1] + FORECAST_MONTHS_AHEAD))
+        months = range(max(first, selected[-1] - 11), end + 1)
+    window = DateRange(first_day(months[0]), last_day(months[-1]))
+    return ForecastChart(
+        energy=_chart(history, months, selected, with_year_earlier=False),
+        forecasts=tuple(f for f in forecasts if window.overlaps(f.period)),
     )
 
 

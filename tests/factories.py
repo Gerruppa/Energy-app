@@ -1,11 +1,13 @@
 """Syntetyczne Faktury z wymyślonymi liczbami, do testów rozkładu i analiz."""
 
 from dataclasses import replace
+from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
 from pv_app.domain.invoice import (
     DateRange,
+    Forecast,
     Invoice,
     InvoiceLine,
     LineComponent,
@@ -117,4 +119,29 @@ def store_invoice(
             seller_share_kwh=Decimal(exported) - Decimal(credited),
             store_end_kwh=Decimal(end),
         ),
+    )
+
+
+def forecast(
+    number: str,
+    period: DateRange,
+    due: date,
+    gross: str = "100.00",
+    import_kwh: str = "100",
+    balance_adjustment: str = "0.00",
+) -> Forecast:
+    """Prognoza z wymyślonymi kwotami; do zapłaty = brutto + doliczone Saldo."""
+    return Forecast(
+        number=number,
+        period=period,
+        import_kwh=Decimal(import_kwh),
+        export_kwh=None,
+        net=Decimal(gross),
+        vat=Decimal(0),
+        gross=Decimal(gross),
+        discount=Decimal(0),
+        balance_adjustment=Decimal(balance_adjustment),
+        amount_due=max(Decimal(0), Decimal(gross) + Decimal(balance_adjustment)),
+        due_date=due,
+        source=Source(number.rsplit("/", 1)[0], 2),
     )

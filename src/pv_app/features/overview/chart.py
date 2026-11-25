@@ -17,14 +17,21 @@ import plotly.graph_objects as go
 from pv_app.domain.formatting import kwh
 from pv_app.domain.view_period import first_day, last_day, month_index, month_label
 from pv_app.features import formatting as fmt
-from pv_app.features.overview.analysis import ChartBlock, EnergyChart
+from pv_app.features.overview.analysis import ChartBlock, EnergyChart, ForecastLine
 
 SUN = "#e8a10c"
 NET = "#2f5d8a"
 INK = "#44505c"
+FORECAST_INK = "#7a8691"
+"""Szary widoczny w jasnym i ciemnym motywie (kontrast ≥ 3:1 dla linii)."""
 CRITICAL = "#c93c2e"
 BLOCK_NOTE = (
     "Faktura podaje tylko sumę za cały okres, więc to średnia. Podział na miesiące da eLicznik."
+)
+FORECAST_NOTE = (
+    "Prognoza to zaliczka wyliczona przez Tauron. Gdy jest wyższa niż to, co naprawdę "
+    "pobraliście z sieci, rośnie nadpłata; gdy niższa, przy rozliczeniu dochodzi niedopłata. "
+    "Prognozy nie wchodzą do Kosztu okresu ani kWh."
 )
 SHORT_MONTHS = ("sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru")
 
@@ -83,7 +90,31 @@ def _hover(block: ChartBlock, fields: list[_Field], earlier: bool) -> str:
     return "<br>".join(lines)
 
 
-def energy_figure(chart: EnergyChart, net_metering: bool, compare: bool) -> go.Figure:
+def _forecast_hover(line: ForecastLine) -> str:
+    amount = (
+        f"{kwh(line.import_kwh)}"
+        if line.single_month
+        else f"{kwh(line.import_kwh)} łącznie, ≈ {kwh(line.per_month)} na miesiąc"
+    )
+    return "<br>".join(
+        [
+            f"Prognoza Taurona {fmt.period(line.period)}",
+            f"Przewidziane pobrane z sieci: {amount}",
+            f"Zaliczka: {fmt.zl(line.gross)}, termin {fmt.day(line.due_date)}",
+            "Nie wchodzi do Kosztu okresu ani kWh.",
+            f"Źródło: {fmt.source(line.source)}",
+        ]
+    )
+
+
+def energy_figure(
+    chart: EnergyChart,
+    net_metering: bool,
+    compare: bool,
+    forecasts: tuple[ForecastLine, ...] = (),
+) -> go.Figure:
+    """Wykres miesiąc po miesiącu; ``forecasts`` (tylko bez fotowoltaiki) to przerywane linie
+    Prognoz Taurona obok Faktur."""
     # Bez fotowoltaiki pobrane rysujemy w górę: nie ma czego pokazać nad osią.
     fields = [EXPORTED, IMPORTED] if net_metering else [replace(IMPORTED, sign=1)]
     figure = go.Figure()
@@ -102,6 +133,8 @@ def energy_figure(chart: EnergyChart, net_metering: bool, compare: bool) -> go.F
             value = field.per_month(block)
             if value is not None:
                 highest = max(highest, float(value))
+    for line in forecasts:
+        highest = max(highest, float(line.per_month))
     step = nice_scale(highest)
     top = math.ceil(highest / step - 1e-9) * step
     bottom = top if len(fields) == 2 else 0
@@ -181,6 +214,18 @@ def energy_figure(chart: EnergyChart, net_metering: bool, compare: bool) -> go.F
                 hoveron="fills+points",
                 **legend("rok wcześniej"),
             )
+
+    for line in forecasts:
+        y = float(line.per_month)
+        figure.add_scatter(
+            x=[_start(line.period.start), _end(line.period.end)],
+            y=[y, y],
+            mode="lines",
+            line={"color": FORECAST_INK, "width": 2, "dash": "dash"},
+            hovertext=_forecast_hover(line),
+            hoverinfo="text",
+            **legend("Prognoza Taurona"),
+        )
 
     if chart.missing_months:
         figure.add_scatter(

@@ -21,7 +21,7 @@ from pv_app.features.invoice_view.analysis import (
     invoice_sheet,
 )
 from pv_app.features.navigation import close_invoice, open_invoice
-from pv_app.features.terms import store_help
+from pv_app.features.terms import FORECAST_HELP, store_help
 from pv_app.storage.archive import FileArchive
 
 PRINT_STYLE = """
@@ -89,10 +89,7 @@ TERMS = {
     ),
     "average_price": "Koszt okresu podzielony przez Energię pobraną w tym okresie.",
     "result": "Suma wszystkich Pozycji faktury brutto: sprzedaż energii plus dystrybucja.",
-    "forecast": (
-        "Prognoza to zaliczka za przyszły okres, wyliczona przez Tauron z przewidywanej "
-        "Energii pobranej i rozliczana w następnej Fakturze."
-    ),
+    "forecast": FORECAST_HELP,
     "amount_due": (
         "Wynik rozliczenia minus Prognozy i wpłaty, które już poszły. Ujemna kwota to "
         "nadpłata do zwrotu albo do zaliczenia na kolejne Prognozy."

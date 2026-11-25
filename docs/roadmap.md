@@ -11,7 +11,7 @@ Statusy: **pomysł** → **do doprecyzowania** → **gotowe do implementacji** �
 
 ## Pierwsza wersja (MVP)
 
-**Status:** w trakcie (spec #1). Zrobione: szkielet aplikacji (#2): start dwuklikiem, ekran powitalny, `Repository` (SQLite i w pamięci), testy w CI; pierwsza Faktura przez kreator (#3): import Faktury w nowym układzie z kontrolą sum, kreator „Dodaj punkt poboru”, lista Faktur w Koszty i Faktury; import paczki (#4): strona „Wgraj Faktury”, duplikaty po hashu pliku i numerze Faktury, pytanie o nowy PPE, archiwum plików; Faktury w starym układzie (#5); Faktury korygujące i Noty obciążeniowe (#6); Okres widoku i wykres miesiąc po miesiącu (#8): rozkład Faktur na miesiące, przełącznik Okresu widoku w adresie strony, zakładka Przegląd z wykresem oddane/pobrane i tabelą rok do roku. Magazyn energii (#9): model porcji `EnergyStore`, zakładka Magazyn energii, kafelek w Przeglądzie.
+**Status:** w trakcie (spec #1). Zrobione: szkielet aplikacji (#2): start dwuklikiem, ekran powitalny, `Repository` (SQLite i w pamięci), testy w CI; pierwsza Faktura przez kreator (#3): import Faktury w nowym układzie z kontrolą sum, kreator „Dodaj punkt poboru”, lista Faktur w Koszty i Faktury; import paczki (#4): strona „Wgraj Faktury”, duplikaty po hashu pliku i numerze Faktury, pytanie o nowy PPE, archiwum plików; Faktury w starym układzie (#5); Faktury korygujące i Noty obciążeniowe (#6); Okres widoku i wykres miesiąc po miesiącu (#8): rozkład Faktur na miesiące, przełącznik Okresu widoku w adresie strony, zakładka Przegląd z wykresem oddane/pobrane i tabelą rok do roku. Magazyn energii (#9): model porcji `EnergyStore`, zakładka Magazyn energii, kafelek w Przeglądzie. Górna część Przeglądu (#10): status Faktur (aktualne / Brakująca Faktura z przyciskiem „Wgraj Fakturę” / odczyt szacunkowy), zdanie na start z ostatniej Faktury, pasek porcji Magazynu energii, kafelki Saldo, Najbliższa płatność i Ostatnia Faktura, wykres „Prognozy Taurona a rzeczywistość” dla PPE bez fotowoltaiki.
 
 F1 + F1a + F0 + F2 + F3 w osobnych widokach PPE. Ustalenia z grillowania (XI 2026):
 - Import obu układów faktur (stary 2022–2025 i nowy), Faktur korygujących i Not obciążeniowych.
@@ -63,7 +63,11 @@ Okresy rozliczeniowe mają od 1 do 12 miesięcy. Każdy okres rozkładany na mie
 
 ## F0. Saldo z Tauronem
 
-**Status:** pomysł (zależy od F1)
+**Status:** w trakcie. Zrobione (#10): Saldo na koniec Okresu widoku (z Faktury, z Notami obciążeniowymi wystawionymi po niej; gdy Faktura nie podaje Salda, tylko jej „do zapłaty / do zwrotu”), najbliższa płatność z harmonogramu Prognoz, Prognozy przerywaną linią obok Faktur (PPE bez fotowoltaiki). Zostało: Saldo w czasie, sygnał rosnącej nadpłaty.
+
+Otwarte pytania:
+- Czy Saldo na następnej Fakturze zawiera już Noty obciążeniowe wystawione przed nią? Model tak zakłada (Nota liczy się w Saldzie tylko do następnej Faktury).
+- Termin płatności samej Faktury nie jest odczytywany; bez harmonogramu Prognoz kafelek pokazuje kwotę bez terminu.
 
 Saldo każdego PPE w czasie, Prognozy zapłacone vs. rzeczywisty koszt, nadchodzące płatności z harmonogramu. Sygnał, gdy nadpłata rośnie bez potrzeby (w PPE Dom nadpłata narasta, bo Opusty pokrywają pobór, a Prognozy były płacone).
 
@@ -131,7 +135,7 @@ Kreator przy pierwszym uruchomieniu i dodawanie kolejnych PPE w ustawieniach. Do
 
 ## F9. Okresy i widok Faktury
 
-**Status:** w trakcie (MVP). Zrobione: przełącznik Okresu widoku w adresie strony, Przegląd i Koszty i Faktury filtrowane Okresem widoku, informacja, z której Faktury wyliczono Okres widoku (#8); widok Faktury (`&faktura=…`) otwierany z listy Faktur i z Przeglądu, strzałki poprzednia / następna, „pokaż ten okres w Przeglądzie” (najmniejszy miesiąc, kwartał albo rok obejmujący Okres rozliczeniowy), rok wcześniej z rozkładu na miesiące (≈ dla części dłuższej Faktury) obok wartości Taurona (#7). Kafelek Magazynu energii ze stanem na koniec Okresu widoku (#9). Zostały: kafelek Salda (#10), wejście z osi czasu. „Analogiczny okres” z Faktury używany tylko, gdy Faktury pokrywają Okres widoku dokładnie (np. miesiąc z własną Fakturą).
+**Status:** w trakcie (MVP). Zrobione: przełącznik Okresu widoku w adresie strony, Przegląd i Koszty i Faktury filtrowane Okresem widoku, informacja, z której Faktury wyliczono Okres widoku (#8); widok Faktury (`&faktura=…`) otwierany z listy Faktur i z Przeglądu, strzałki poprzednia / następna, „pokaż ten okres w Przeglądzie” (najmniejszy miesiąc, kwartał albo rok obejmujący Okres rozliczeniowy), rok wcześniej z rozkładu na miesiące (≈ dla części dłuższej Faktury) obok wartości Taurona (#7). Kafelek Magazynu energii ze stanem na koniec Okresu widoku (#9). Kafelki Salda i Ostatniej Faktury ze stanem na koniec Okresu widoku (#10). Zostało: wejście z osi czasu. „Analogiczny okres” z Faktury używany tylko, gdy Faktury pokrywają Okres widoku dokładnie (np. miesiąc z własną Fakturą).
 
 - Przełącznik Okresu widoku pod nazwą PPE: Cały okres · Rok · Kwartał · Miesiąc, strzałki ◀ ▶ do sąsiednich okresów; działa we wszystkich zakładkach. Kafelki ze stanem (Magazyn energii, Saldo) pokazują stan na koniec Okresu widoku; rok do roku = ten sam Okres widoku rok wcześniej.
 - Okres widoku wycięty z dłuższej Faktury oznaczony ≈ ze zdaniem, z której Faktury wyliczony; okresy pokryte miesięcznymi Fakturami są dokładne.

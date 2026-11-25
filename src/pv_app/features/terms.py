@@ -27,3 +27,9 @@ ESTIMATE_HELP = (
     f"to szacunek: każda porcja wygasa {EXPIRY_MONTHS} miesięcy po końcu okresu, w którym "
     "oddaliście prąd, a prąd pobrany z Magazynu bierzemy najpierw z najstarszej porcji."
 )
+
+
+FORECAST_HELP = (
+    "Prognoza to zaliczka za przyszły okres, wyliczona przez Tauron z przewidywanej "
+    "Energii pobranej i rozliczana w następnej Fakturze."
+)

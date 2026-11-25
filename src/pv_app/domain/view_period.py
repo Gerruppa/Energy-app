@@ -52,6 +52,14 @@ def last_day(index: int) -> date:
     return date(start.year, start.month, calendar.monthrange(start.year, start.month)[1])
 
 
+def calendar_month(dates: DateRange) -> int | None:
+    """``month_index`` zakresu, gdy to dokładnie jeden miesiąc kalendarzowy; inaczej ``None``."""
+    index = month_index(dates.start)
+    if dates.start.day == 1 and dates.end == last_day(index):
+        return index
+    return None
+
+
 def month_label(index: int) -> str:
     """Miesiąc po polsku: ``maj 2026``."""
     return f"{MONTH_NAMES[index % 12]} {index // 12}"

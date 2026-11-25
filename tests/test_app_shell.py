@@ -157,7 +157,8 @@ def test_energy_store_tab_and_overview_tile_show_state_from_invoice(app: AppTest
 
     assert not app.exception
     overview, store = app.tabs[0], app.tabs[1]
-    assert [m.label for m in overview.metric][:1] == ["Magazyn energii"]
+    hero = [h.proto.body for h in overview.get("html") if "pv-hero" in h.proto.body]
+    assert len(hero) == 1 and "Magazyn energii" in hero[0] and "pv-tank" in hero[0]
     assert store.metric[0].label == "Magazyn energii"
     assert "nie bateria" in (store.metric[0].help or "")
     movements = store.dataframe[0].value
