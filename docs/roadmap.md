@@ -84,7 +84,7 @@ Stan Magazynu energii w czasie, przyrosty i odbiory na okres, Udział Sprzedawcy
 
 ## F4. Import Profilu godzinowego
 
-**Status:** w trakcie. Zrobione (XI 2026): import Raportu wartości godzinowych (xlsx od Tauron Dystrybucji) na stronie „Wgraj pliki”, zapis Profilu godzinowego w bazie (nowszy raport nadpisuje te same godziny), raport nieznanego PPE odrzucany. Lokalny test na prawdziwych danych: sumy po Zbilansowaniu godzinowym zgadzają się z Fakturami (różnica poniżej 1%), sumy przed zbilansowaniem są o kilkadziesiąt procent wyższe. Zostało: porównanie sum z Fakturami na ekranie (ADR 0003), zakładka Dzień po dniu, eksport CSV z eLicznika, jeśli kiedyś będzie potrzebny.
+**Status:** w trakcie. Zrobione (XI 2026): import Raportu wartości godzinowych (xlsx od Tauron Dystrybucji) na stronie „Wgraj pliki”, zapis Profilu godzinowego w bazie (nowszy raport nadpisuje te same godziny), raport nieznanego PPE odrzucany. Lokalny test na prawdziwych danych: sumy po Zbilansowaniu godzinowym zgadzają się z Fakturami (różnica poniżej 1%), sumy przed zbilansowaniem są o kilkadziesiąt procent wyższe. Zostało: porównanie sum z Fakturami na ekranie (ADR 0003) i zakładka Dzień po dniu (#15, do doprecyzowania), eksport CSV z eLicznika, jeśli kiedyś będzie potrzebny.
 
 Upload xlsx → Profil godzinowy dla PPE Dom (Mieszkanie nie ma eLicznika). Porównanie sum z Fakturami (ADR 0003).
 
