@@ -63,7 +63,7 @@ Okresy rozliczeniowe mają od 1 do 12 miesięcy. Każdy okres rozkładany na mie
 
 ## F0. Saldo z Tauronem
 
-**Status:** w trakcie. Zrobione (#10): Saldo na koniec Okresu widoku (z Faktury, z Notami obciążeniowymi wystawionymi po niej; gdy Faktura nie podaje Salda, tylko jej „do zapłaty / do zwrotu”), najbliższa płatność z harmonogramu Prognoz, Prognozy przerywaną linią obok Faktur (PPE bez fotowoltaiki). Zostało: Saldo w czasie, sygnał rosnącej nadpłaty.
+**Status:** w trakcie. Zrobione (#10): Saldo na koniec Okresu widoku (z Faktury, z Notami obciążeniowymi wystawionymi po niej; gdy Faktura nie podaje Salda, tylko jej „do zapłaty / do zwrotu”), najbliższa płatność z harmonogramu Prognoz, Prognozy przerywaną linią obok Faktur (PPE bez fotowoltaiki). Zostało: Saldo w czasie, sygnał rosnącej nadpłaty (#19).
 
 Otwarte pytania:
 - Czy Saldo na następnej Fakturze zawiera już Noty obciążeniowe wystawione przed nią? Model tak zakłada (Nota liczy się w Saldzie tylko do następnej Faktury).
@@ -84,11 +84,13 @@ Koszt miesięczny dla każdego PPE i łącznie, podział na Składniki zmienne i
 Otwarte pytania:
 - Tauron rozlicza Wygaśnięcie zapewne miesiącami oddania, a model traktuje Fakturę za kilka miesięcy jako jedną porcję; dokładniejszy podział da Profil godzinowy (F4).
 
+Do triage: Wygaśnięcie w przeliczeniu na dni poboru, ⚠ tylko przy porcji, której pobór nie zużyje (#20).
+
 Stan Magazynu energii w czasie, przyrosty i odbiory na okres, Udział Sprzedawcy, Wygaśnięcia wyliczone z różnicy stanu końcowego i początkowego kolejnych Faktur, porcje wygasające w najbliższych 12 miesiącach.
 
 ## F4. Import Profilu godzinowego
 
-**Status:** zrobione (poza eksportem CSV). Zrobione (XI 2026): import Raportu wartości godzinowych (xlsx od Tauron Dystrybucji) na stronie „Wgraj pliki”, zapis Profilu godzinowego w bazie (nowszy raport nadpisuje te same godziny), raport nieznanego PPE odrzucany. Lokalny test na prawdziwych danych: sumy po Zbilansowaniu godzinowym zgadzają się z Fakturami (różnica poniżej 1%), sumy przed zbilansowaniem są o kilkadziesiąt procent wyższe. Porównanie sum z Fakturami na stronie „Dane” (#16): dla każdego niezastąpionego Okresu rozliczeniowego, który Profil pokrywa choć jednym dniem, Energia pobrana i oddana z obu źródeł i różnica; powyżej 2% „do sprawdzenia”, przy niepełnym pokryciu liczba brakujących dni (doba pełna przy 23, 24 albo 25 godzinach); okresy po końcu Profilu mają wiersz z brakującymi dniami (przypomnienie o nowym Raporcie), a okresy sprzed jego początku są tylko policzone. Zakładka Dzień po dniu (#15): słupek na każdy dzień Okresu widoku (oddane w górę, pobrane w dół; dzień bez pełnego Profilu kreskowany), godziny klikniętego dnia (na start ostatni dzień z Profilem; 23 albo 25 słupków przy zmianie czasu), Typowa doba z podpowiedzią, w których godzinach panele dają nadwyżkę; tylko ilości po Zbilansowaniu godzinowym, podpowiedź „?” z prostym wyjaśnieniem. Przełącznik Okresu widoku sięga do ostatniego dnia Profilu (`view_extent`), widok na start dalej z Faktur. Zostało: eksport CSV z eLicznika, jeśli kiedyś będzie potrzebny.
+**Status:** zrobione (poza eksportem CSV). Zrobione (XI 2026): import Raportu wartości godzinowych (xlsx od Tauron Dystrybucji) na stronie „Wgraj pliki”, zapis Profilu godzinowego w bazie (nowszy raport nadpisuje te same godziny), raport nieznanego PPE odrzucany. Lokalny test na prawdziwych danych: sumy po Zbilansowaniu godzinowym zgadzają się z Fakturami (różnica poniżej 1%), sumy przed zbilansowaniem są o kilkadziesiąt procent wyższe. Porównanie sum z Fakturami na stronie „Dane” (#16): dla każdego niezastąpionego Okresu rozliczeniowego, który Profil pokrywa choć jednym dniem, Energia pobrana i oddana z obu źródeł i różnica; powyżej 2% „do sprawdzenia”, przy niepełnym pokryciu liczba brakujących dni (doba pełna przy 23, 24 albo 25 godzinach); okresy po końcu Profilu mają wiersz z brakującymi dniami (przypomnienie o nowym Raporcie), a okresy sprzed jego początku są tylko policzone. Zakładka Dzień po dniu (#15): słupek na każdy dzień Okresu widoku (oddane w górę, pobrane w dół; dzień bez pełnego Profilu kreskowany), godziny klikniętego dnia (na start ostatni dzień z Profilem; 23 albo 25 słupków przy zmianie czasu), Typowa doba z podpowiedzią, w których godzinach panele dają nadwyżkę; tylko ilości po Zbilansowaniu godzinowym, podpowiedź „?” z prostym wyjaśnieniem. Przełącznik Okresu widoku sięga do ostatniego dnia Profilu (`view_extent`), widok na start dalej z Faktur. Zostało: eksport CSV z eLicznika, jeśli kiedyś będzie potrzebny. Do triage: przypomnienie o nowym Raporcie w Przeglądzie i w Dniu po dniu, gdy Profil godzinowy jest zaległy (#18).
 
 Ustalenia z triage #15 (XI 2026):
 - Zakładka Dzień po dniu: dni w Okresie widoku (oddane w górę, pobrane w dół), godziny klikniętego dnia, Typowa doba; tylko ilości po Zbilansowaniu godzinowym.
@@ -142,6 +144,8 @@ Kreator przy pierwszym uruchomieniu i dodawanie kolejnych PPE w ustawieniach. Do
 ## F9. Okresy i widok Faktury
 
 **Status:** zrobione (MVP). Przełącznik Okresu widoku w adresie strony, Przegląd i Koszty i Faktury filtrowane Okresem widoku, informacja, z której Faktury wyliczono Okres widoku (#8); widok Faktury (`&faktura=…`) otwierany z listy Faktur i z Przeglądu, strzałki poprzednia / następna, „pokaż ten okres w Przeglądzie” (najmniejszy miesiąc, kwartał albo rok obejmujący Okres rozliczeniowy), rok wcześniej z rozkładu na miesiące (≈ dla części dłuższej Faktury) obok wartości Taurona (#7). Kafelek Magazynu energii ze stanem na koniec Okresu widoku (#9). Kafelki Salda i Ostatniej Faktury ze stanem na koniec Okresu widoku (#10). Wejście z osi czasu na stronie „Dane” (#12). „Analogiczny okres” z Faktury używany tylko, gdy Faktury pokrywają Okres widoku dokładnie (np. miesiąc z własną Fakturą).
+
+Do triage: wybrana zakładka w adresie strony (#17).
 
 - Przełącznik Okresu widoku pod nazwą PPE: Cały okres · Rok · Kwartał · Miesiąc, strzałki ◀ ▶ do sąsiednich okresów; działa we wszystkich zakładkach. Kafelki ze stanem (Magazyn energii, Saldo) pokazują stan na koniec Okresu widoku; rok do roku = ten sam Okres widoku rok wcześniej.
 - Okres widoku wycięty z dłuższej Faktury oznaczony ≈ ze zdaniem, z której Faktury wyliczony; okresy pokryte miesięcznymi Fakturami są dokładne.
