@@ -30,6 +30,8 @@ class Feature(Protocol):
     """Zakładka dashboardu; rejestrowana w ``features/__init__.py``."""
 
     id: str
+    """Stały identyfikator w adresie strony (``&zakladka=…``), po polsku bez znaków
+    diakrytycznych; nie zmienia się razem z ``title``."""
     title: str
     order: int
 

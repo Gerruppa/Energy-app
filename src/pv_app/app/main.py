@@ -5,6 +5,7 @@ from datetime import date
 import streamlit as st
 
 from pv_app.app.data_page import DATA_PAGE, close_data_page, render_data_page
+from pv_app.app.feature_tabs import render_feature_tabs
 from pv_app.app.import_page import IMPORTING, NEW_METERING_POINT, render_import_page
 from pv_app.app.settings import archive_dir, database_path
 from pv_app.app.settings_page import (
@@ -34,7 +35,8 @@ def _close_pages() -> None:
 
 
 def _switch_to(slug: str) -> None:
-    """Inny PPE ma własny adres strony; Okres widoku i otwarta Faktura go nie dotyczą."""
+    """Inny PPE ma własny adres strony; Okres widoku, zakładka i otwarta Faktura go nie
+    dotyczą, więc otwiera się Przegląd."""
     _close_pages()
     forget_view()
     st.query_params[METERING_POINT_QUERY_KEY] = slug
@@ -117,9 +119,6 @@ try:
             st.title(f"{point.icon.emoji} {point.name}")
             st.caption(point.address)
             render_view_period_switcher(view_period, extent)
-            features = available_features(repository, point)
-            for tab, feature in zip(st.tabs([f.title for f in features]), features, strict=True):
-                with tab:
-                    feature.render(context)
+            render_feature_tabs(available_features(repository, point), context)
 finally:
     repository.close()

@@ -1,5 +1,5 @@
-"""Przejścia przez adres strony: PPE (``?ppe=…``), Okres widoku (``&okres=…``) i otwarta
-Faktura (``&faktura=…``), oraz otwarcie strony importu.
+"""Przejścia przez adres strony: PPE (``?ppe=…``), Okres widoku (``&okres=…``), zakładka
+(``&zakladka=…``) i otwarta Faktura (``&faktura=…``), oraz otwarcie strony importu.
 
 Wspólne dla zakładek i powłoki, więc każda zakładka może otworzyć widok Faktury albo stronę
 „Wgraj pliki” bez importowania innej zakładki ani powłoki.
@@ -14,8 +14,22 @@ from pv_app.domain.view_period import ViewPeriod
 METERING_POINT_QUERY_KEY = "ppe"
 VIEW_PERIOD_QUERY_KEY = "okres"
 INVOICE_QUERY_KEY = "faktura"
+TAB_QUERY_KEY = "zakladka"
 IMPORTING = "importing"
 """Klucz ``st.session_state``: strona importu jest otwarta."""
+
+
+def requested_tab() -> str | None:
+    """Identyfikator zakładki z adresu strony (``Feature.id``); bez niego Przegląd."""
+    return st.query_params.get(TAB_QUERY_KEY) or None
+
+
+def open_tab(feature_id: str | None) -> None:
+    """Ustawia zakładkę w adresie strony; ``None`` to Przegląd, bez klucza w adresie."""
+    if feature_id is not None:
+        st.query_params[TAB_QUERY_KEY] = feature_id
+    elif TAB_QUERY_KEY in st.query_params:
+        del st.query_params[TAB_QUERY_KEY]
 
 
 def requested_invoice() -> str | None:
@@ -33,17 +47,19 @@ def open_invoice(number: str) -> None:
 
 
 def close_invoice(view_period: ViewPeriod | None = None) -> None:
-    """Wraca do zakładek; z ``view_period`` od razu ustawia Okres widoku."""
+    """Wraca do zakładki, z której otwarto Fakturę; z ``view_period`` do Przeglądu
+    w tym Okresie widoku („pokaż ten okres w Przeglądzie”)."""
     if INVOICE_QUERY_KEY in st.query_params:
         del st.query_params[INVOICE_QUERY_KEY]
     if view_period is not None:
         st.query_params[VIEW_PERIOD_QUERY_KEY] = view_period.to_query()
+        open_tab(None)
 
 
 def forget_view(*, metering_point: bool = False) -> None:
-    """Usuwa z adresu Okres widoku i otwartą Fakturę (dotyczą jednego PPE), z
+    """Usuwa z adresu Okres widoku, zakładkę i otwartą Fakturę (dotyczą jednego PPE), z
     ``metering_point`` także sam PPE."""
-    keys = [VIEW_PERIOD_QUERY_KEY, INVOICE_QUERY_KEY]
+    keys = [VIEW_PERIOD_QUERY_KEY, TAB_QUERY_KEY, INVOICE_QUERY_KEY]
     if metering_point:
         keys.append(METERING_POINT_QUERY_KEY)
     for key in keys:

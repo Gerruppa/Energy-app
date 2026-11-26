@@ -367,3 +367,74 @@ def test_day_by_day_tab_reaches_days_after_the_last_invoice(app: AppTest) -> Non
     assert [i.value for i in app.tabs[2].info] == ["Brak Faktur za listopad 2026."]
     assert app.tabs[3].subheader[1].value == "Godzina po godzinie: 05.11.2026"
     assert app.button(key="view_period_next").disabled
+
+
+def _active_tab(app: AppTest) -> str:
+    """Tytuł zakładki, którą strona otwiera (``default`` w ``st.tabs``)."""
+    tab_containers = [node for node in app.main if getattr(node, "type", None) == "tab_container"]
+    assert len(tab_containers) == 1
+    index: int = tab_containers[0].proto.tab_container.default_tab_index
+    label: str = app.tabs[index].label
+    return label
+
+
+def test_tab_from_page_address_opens_with_the_view_period(app: AppTest) -> None:
+    _home_with_october_invoice()
+    app.query_params["okres"] = "2026-10"
+    app.query_params["zakladka"] = "koszty"
+
+    app.run()
+
+    assert not app.exception
+    assert _active_tab(app) == "Koszty i Faktury"
+    assert app.query_params["zakladka"] == "koszty"
+    assert "**październik 2026**" in [m.value for m in app.markdown]
+
+
+def test_hidden_or_unknown_tab_in_page_address_opens_overview(app: AppTest) -> None:
+    # Bez Profilu godzinowego nie ma zakładki Dzień po dniu; Przegląd nie ma klucza w adresie.
+    _home_with_october_invoice()
+    for requested in ("dzien", "nie-ma-takiej", "przeglad"):
+        app.query_params["zakladka"] = requested
+
+        app.run()
+
+        assert not app.exception
+        assert _active_tab(app) == "Przegląd"
+        assert "zakladka" not in app.query_params
+
+
+def test_switching_metering_point_returns_to_overview(app: AppTest) -> None:
+    _home_with_october_invoice()
+    repo = SqliteRepository(database_path())
+    repo.add_metering_point(
+        replace(HOME, ppe_number="590000000000000002", name="Mieszkanie", slug="mieszkanie")
+    )
+    repo.close()
+    app.query_params["zakladka"] = "koszty"
+    app.run()
+
+    next(b for b in app.sidebar.button if "Mieszkanie" in b.label).click().run()
+
+    assert not app.exception
+    assert "zakladka" not in app.query_params
+
+
+def test_back_from_invoice_keeps_the_tab_and_overview_link_opens_overview(
+    app: AppTest,
+) -> None:
+    _home_with_october_invoice()
+    invoice_number = SqliteRepository(database_path()).list_invoices(HOME.ppe_number)[0].number
+    app.query_params["zakladka"] = "koszty"
+    app.query_params["faktura"] = invoice_number
+    app.run()
+
+    next(b for b in app.button if b.label == "Wróć").click().run()
+    assert app.query_params["zakladka"] == "koszty"
+    assert _active_tab(app) == "Koszty i Faktury"
+
+    app.query_params["faktura"] = invoice_number
+    app.run()
+    next(b for b in app.button if b.label == "Pokaż ten okres w Przeglądzie").click().run()
+    assert "zakladka" not in app.query_params
+    assert _active_tab(app) == "Przegląd"

@@ -22,6 +22,7 @@ from pv_app.app.import_page import (
 from pv_app.domain.invoice import Invoice, SettlementType
 from pv_app.domain.metering_point import SiteIcon
 from pv_app.features import formatting as fmt
+from pv_app.features.navigation import METERING_POINT_QUERY_KEY, forget_view
 from pv_app.storage.archive import FileArchive
 from pv_app.storage.repository import Repository
 
@@ -145,5 +146,7 @@ def render_naming_step(
         st.session_state[IMPORTING] = True
         if not added.already_existed:
             st.session_state[ADDED_METERING_POINT] = point.name
-        st.query_params["ppe"] = point.slug
+        # Nowy PPE otwiera się na Przeglądzie; Okres widoku i zakładka dotyczyły poprzedniego.
+        forget_view()
+        st.query_params[METERING_POINT_QUERY_KEY] = point.slug
     st.rerun()
