@@ -4,7 +4,7 @@ from typing import Protocol
 
 from pv_app.domain.debit_note import DebitNote
 from pv_app.domain.hourly_profile import HourlyReading
-from pv_app.domain.invoice import Invoice
+from pv_app.domain.invoice import DateRange, Invoice
 from pv_app.domain.metering_point import MeteringPoint
 
 
@@ -97,6 +97,11 @@ class Repository(Protocol):
 
     def has_hourly_readings(self, ppe_number: str) -> bool:
         """Czy PPE ma choć jedną godzinę Profilu godzinowego (bez czytania całego Profilu)."""
+        ...
+
+    def hourly_profile_days(self, ppe_number: str) -> DateRange | None:
+        """Od pierwszego do ostatniego dnia Profilu godzinowego PPE (bez czytania całego
+        Profilu); ``None`` bez Profilu."""
         ...
 
     def clear_documents(self) -> None:

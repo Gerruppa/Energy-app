@@ -97,13 +97,19 @@ class DayByDay:
         return next((d.day for d in reversed(self.days) if d.hours), None)
 
     @property
-    def surplus_hours(self) -> tuple[int, int] | None:
-        """Kiedy panele dają nadwyżkę: od początku pierwszej do końca ostatniej godziny Typowej
-        doby, w której oddane przewyższa pobrane; ``None``, gdy żadna."""
-        surplus = [h.start_hour for h in self.typical_day if h.exported_kwh > h.imported_kwh]
-        if not surplus:
-            return None
-        return surplus[0], surplus[-1] + 1
+    def surplus_hours(self) -> tuple[tuple[int, int], ...]:
+        """Kiedy panele dają nadwyżkę: ciągłe przedziały godzin Typowej doby, w których oddane
+        przewyższa pobrane, jako (początek, koniec), np. ``((10, 12), (14, 15))``; pusta, gdy
+        żadna godzina."""
+        ranges: list[tuple[int, int]] = []
+        for hour in self.typical_day:
+            if hour.exported_kwh <= hour.imported_kwh:
+                continue
+            if ranges and ranges[-1][1] == hour.start_hour:
+                ranges[-1] = (ranges[-1][0], hour.start_hour + 1)
+            else:
+                ranges.append((hour.start_hour, hour.start_hour + 1))
+        return tuple(ranges)
 
     def find(self, day: date) -> Day | None:
         return next((d for d in self.days if d.day == day), None)

@@ -155,6 +155,6 @@ def test_surplus_hours_are_where_typical_day_exports_more_than_it_imports() -> N
     flat = day_by_day(repository_with(without_panels), Filters(HOME, OCTOBER))
 
     assert view is not None and flat is not None
-    # Nadwyżka w godzinach 10:00–11:00 … 14:00–15:00 (koniec 15:00).
-    assert view.surplus_hours == (10, 15)
-    assert flat.surplus_hours is None
+    # Nadwyżka 10:00–12:00 i 14:00–15:00; godziny 12:00–14:00 bez nadwyżki rozdzielają przedziały.
+    assert view.surplus_hours == ((10, 12), (14, 15))
+    assert flat.surplus_hours == ()

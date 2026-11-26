@@ -3,7 +3,7 @@ from datetime import datetime
 
 from pv_app.domain.debit_note import DebitNote
 from pv_app.domain.hourly_profile import HourlyReading
-from pv_app.domain.invoice import Invoice
+from pv_app.domain.invoice import DateRange, Invoice
 from pv_app.domain.metering_point import MeteringPoint
 from pv_app.storage.repository import SourceFile
 
@@ -110,6 +110,10 @@ class InMemoryRepository:
 
     def has_hourly_readings(self, ppe_number: str) -> bool:
         return any(r.ppe_number == ppe_number for r in self._hourly_readings.values())
+
+    def hourly_profile_days(self, ppe_number: str) -> DateRange | None:
+        days = [r.day for r in self._hourly_readings.values() if r.ppe_number == ppe_number]
+        return DateRange(min(days), max(days)) if days else None
 
     def clear_documents(self) -> None:
         self._invoices = []

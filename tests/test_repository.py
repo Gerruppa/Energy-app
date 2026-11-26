@@ -398,3 +398,17 @@ def test_source_files_saved_before_they_knew_their_metering_point_get_it_on_migr
     # Raport wartości godzinowych bez numeru: PPE jedynego Profilu godzinowego w bazie.
     assert [f.ppe_number for f in repo.list_source_files()] == [HOME.ppe_number] * 2
     repo.close()
+
+
+def test_hourly_profile_days_span_first_to_last_day_of_the_metering_point(
+    repository: Repository,
+) -> None:
+    assert repository.hourly_profile_days(HOME.ppe_number) is None
+    # Godzina kończąca się o 0:00 należy do poprzedniego dnia.
+    repository.add_hourly_readings(
+        [hour(26, 3, "0.1"), hour(2, 0, "0.1"), hour(5, 0, "0.1", ppe="590000000000000002")]
+    )
+
+    assert repository.hourly_profile_days(HOME.ppe_number) == DateRange(
+        date(2025, 10, 1), date(2025, 10, 26)
+    )

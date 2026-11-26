@@ -5,6 +5,11 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 
+def day_of_hour(hour_end: datetime) -> date:
+    """Dzień, do którego należy godzina oznaczona końcem: ``0:00`` zamyka poprzedni dzień."""
+    return (hour_end - timedelta(hours=1)).date()
+
+
 @dataclass(frozen=True)
 class HourlyReading:
     """Jedna godzina Profilu godzinowego.
@@ -29,7 +34,7 @@ class HourlyReading:
     @property
     def day(self) -> date:
         """Dzień, do którego należy godzina."""
-        return (self.hour_end - timedelta(hours=1)).date()
+        return day_of_hour(self.hour_end)
 
     @property
     def key(self) -> tuple[str, datetime, bool]:

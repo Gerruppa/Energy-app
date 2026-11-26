@@ -5,8 +5,8 @@ from decimal import Decimal
 from pathlib import Path
 
 from pv_app.domain.debit_note import DebitNote
-from pv_app.domain.hourly_profile import HourlyReading
-from pv_app.domain.invoice import Invoice
+from pv_app.domain.hourly_profile import HourlyReading, day_of_hour
+from pv_app.domain.invoice import DateRange, Invoice
 from pv_app.domain.metering_point import MeteringPoint, SiteIcon
 from pv_app.storage.codec import from_json, to_json
 from pv_app.storage.repository import SourceFile
@@ -328,6 +328,17 @@ class SqliteRepository:
             "SELECT 1 FROM hourly_reading WHERE ppe_number = ? LIMIT 1", (ppe_number,)
         ).fetchone()
         return row is not None
+
+    def hourly_profile_days(self, ppe_number: str) -> DateRange | None:
+        first, last = self._connection.execute(
+            "SELECT MIN(hour_end), MAX(hour_end) FROM hourly_reading WHERE ppe_number = ?",
+            (ppe_number,),
+        ).fetchone()
+        if first is None:
+            return None
+        return DateRange(
+            day_of_hour(datetime.fromisoformat(first)), day_of_hour(datetime.fromisoformat(last))
+        )
 
     def clear_documents(self) -> None:
         with self._connection:

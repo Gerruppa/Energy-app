@@ -4,16 +4,18 @@ Jak wykres miesięczny w Przeglądzie: oddane do sieci w górę, pobrane z sieci
 """
 
 import math
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
+from typing import Protocol
 
 import plotly.graph_objects as go
 
 from pv_app.domain.formatting import kwh
 from pv_app.features import formatting as fmt
 from pv_app.features.day_by_day.analysis import Day, Hour, TypicalHour, hour_range
-from pv_app.features.monthly_figure import NET, SUN, nice_scale
+from pv_app.features.monthly_figure import INK, NET, SUN, nice_scale
 
 INCOMPLETE_PATTERN = "/"
 """Kreskowanie słupka dnia bez pełnego Profilu godzinowego."""
@@ -32,13 +34,49 @@ def _layout(figure: go.Figure, height: int) -> None:
     )
 
 
-def _mirrored_axis(figure: go.Figure, up: Sequence[Decimal], down: Sequence[Decimal]) -> None:
+class _Energy(Protocol):
+    @property
+    def imported_kwh(self) -> Decimal: ...
+
+    @property
+    def exported_kwh(self) -> Decimal: ...
+
+
+@dataclass(frozen=True)
+class Series:
+    """Jedna ilość na wykresach: oddane do sieci w górę, pobrane z sieci w dół."""
+
+    label: str
+    color: str
+    sign: int
+    direction: str
+    amount: Callable[[_Energy], Decimal]
+    area: bool
+    """Na Typowej dobie pole pod linią (oddane), inaczej sama linia."""
+
+
+EXPORTED = Series("Oddane do sieci", SUN, 1, "w górę", lambda e: e.exported_kwh, area=True)
+IMPORTED = Series("Pobrane z sieci", NET, -1, "w dół", lambda e: e.imported_kwh, area=False)
+
+
+def series(net_metering: bool) -> tuple[Series, ...]:
+    """Co pokazać: bez net-meteringu PPE nie oddaje prądu, więc tylko pobrane."""
+    return (EXPORTED, IMPORTED) if net_metering else (IMPORTED,)
+
+
+def amounts(shown: Sequence[Series], item: _Energy, decimals: int) -> list[str]:
+    """``Oddane do sieci: 12,5 kWh`` dla każdej pokazanej serii."""
+    return [f"{s.label}: {kwh(s.amount(item), decimals)}" for s in shown]
+
+
+def _mirrored_axis(figure: go.Figure, shown: Sequence[Series], items: Sequence[_Energy]) -> None:
     """Wspólna skala w górę i w dół, podpisy osi bez minusa (pobrane to też dodatnie kWh);
-    bez oddanych (``up`` puste) tylko w dół."""
-    highest = float(max([*up, *down, Decimal("0.01")]))
+    bez serii w górę tylko w dół."""
+    values = [s.amount(i) for s in shown for i in items]
+    highest = float(max([*values, Decimal("0.01")]))
     step = nice_scale(highest)
     bottom = math.ceil(highest / step - 1e-9) * step
-    top = bottom if up else 0
+    top = bottom if any(s.sign > 0 for s in shown) else 0
     ticks = [v * step for v in range(-round(bottom / step), round(top / step) + 1)]
     figure.update_yaxes(
         range=[-bottom * 1.05, top * 1.05],
@@ -47,89 +85,55 @@ def _mirrored_axis(figure: go.Figure, up: Sequence[Decimal], down: Sequence[Deci
     )
 
 
-def _day_hover(day: Day, net_metering: bool) -> str:
-    lines = [f"{_WEEKDAYS[day.day.weekday()]} {fmt.day(day.day)}"]
-    if net_metering:
-        lines.append(f"Oddane do sieci: {kwh(day.exported_kwh, 1)}")
-    lines.append(f"Pobrane z sieci: {kwh(day.imported_kwh, 1)}")
+def _day_hover(day: Day, shown: Sequence[Series]) -> str:
+    lines = [f"{_WEEKDAYS[day.day.weekday()]} {fmt.day(day.day)}", *amounts(shown, day, 1)]
     if not day.complete:
         lines.append(f"Niepełny Profil: {day.hour_count} z {day.expected_hours} godzin")
     lines.append("Kliknij, żeby zobaczyć godziny")
     return "<br>".join(lines)
 
 
-def days_figure(days: Sequence[Day], net_metering: bool, selected: date | None) -> go.Figure:
+def days_figure(days: Sequence[Day], shown: Sequence[Series], selected: date | None) -> go.Figure:
     """Słupek na każdy dzień; dzień bez pełnego Profilu kreskowany, wybrany dzień z obwódką."""
-    x = [d.day for d in days]
-    hover = [_day_hover(d, net_metering) for d in days]
+    hover = [_day_hover(d, shown) for d in days]
     patterns = ["" if d.complete else INCOMPLETE_PATTERN for d in days]
     outline = [2 if d.day == selected else 0 for d in days]
-    custom = [d.day.isoformat() for d in days]
     figure = go.Figure()
-    if net_metering:
+    for s in shown:
         figure.add_bar(
-            x=x,
-            y=[float(d.exported_kwh) for d in days],
-            name="Oddane do sieci",
+            x=[d.day for d in days],
+            y=[s.sign * float(s.amount(d)) for d in days],
+            name=s.label,
             marker={
-                "color": SUN,
+                "color": s.color,
                 "pattern": {"shape": patterns},
-                "line": {"width": outline, "color": "#44505c"},
+                "line": {"width": outline, "color": INK},
             },
-            customdata=custom,
+            customdata=[d.day.isoformat() for d in days],
             hovertext=hover,
             hoverinfo="text",
         )
-    figure.add_bar(
-        x=x,
-        y=[-float(d.imported_kwh) for d in days],
-        name="Pobrane z sieci",
-        marker={
-            "color": NET,
-            "pattern": {"shape": patterns},
-            "line": {"width": outline, "color": "#44505c"},
-        },
-        customdata=custom,
-        hovertext=hover,
-        hoverinfo="text",
-    )
     _layout(figure, 320)
-    _mirrored_axis(
-        figure,
-        [d.exported_kwh for d in days] if net_metering else [],
-        [d.imported_kwh for d in days],
-    )
+    _mirrored_axis(figure, shown, days)
     figure.update_xaxes(tickformat="%d.%m")
     return figure
 
 
-def hours_figure(hours: Sequence[Hour], net_metering: bool) -> go.Figure:
+def hours_figure(hours: Sequence[Hour], shown: Sequence[Series]) -> go.Figure:
     """Godziny jednego dnia jako kategorie, więc dzień ma 23 albo 25 słupków przy zmianie czasu."""
-    x = [h.label for h in hours]
+    hover = ["<br>".join([h.label, *amounts(shown, h, 2)]) for h in hours]
     figure = go.Figure()
-    if net_metering:
+    for s in shown:
         figure.add_bar(
-            x=x,
-            y=[float(h.exported_kwh) for h in hours],
-            name="Oddane do sieci",
-            marker={"color": SUN},
-            hovertext=[f"{h.label}<br>Oddane do sieci: {kwh(h.exported_kwh, 2)}" for h in hours],
+            x=[h.label for h in hours],
+            y=[s.sign * float(s.amount(h)) for h in hours],
+            name=s.label,
+            marker={"color": s.color},
+            hovertext=hover,
             hoverinfo="text",
         )
-    figure.add_bar(
-        x=x,
-        y=[-float(h.imported_kwh) for h in hours],
-        name="Pobrane z sieci",
-        marker={"color": NET},
-        hovertext=[f"{h.label}<br>Pobrane z sieci: {kwh(h.imported_kwh, 2)}" for h in hours],
-        hoverinfo="text",
-    )
     _layout(figure, 300)
-    _mirrored_axis(
-        figure,
-        [h.exported_kwh for h in hours] if net_metering else [],
-        [h.imported_kwh for h in hours],
-    )
+    _mirrored_axis(figure, shown, hours)
     # Podpisy co 3 godziny po godzinie doby, więc w dniach 23- i 25-godzinnych zostają równe.
     ticks = [h for h in hours if h.start_hour % 3 == 0 and not h.extra_hour]
     figure.update_xaxes(
@@ -141,40 +145,27 @@ def hours_figure(hours: Sequence[Hour], net_metering: bool) -> go.Figure:
 
 
 def typical_day_figure(
-    typical: Sequence[TypicalHour], net_metering: bool, period_label: str
+    typical: Sequence[TypicalHour], shown: Sequence[Series], period_label: str
 ) -> go.Figure:
     """Średnia każdej godziny doby: oddane jako pole nad osią, pobrane jako linia."""
-    x = [h.start_hour + 0.5 for h in typical]
+    hover = [
+        "<br>".join(
+            [f"{hour_range(h.start_hour)}, średnio ({period_label})", *amounts(shown, h, 2)]
+        )
+        for h in typical
+    ]
     figure = go.Figure()
-
-    def hover(h: TypicalHour) -> str:
-        lines = [f"{hour_range(h.start_hour)}, średnio ({period_label})"]
-        if net_metering:
-            lines.append(f"Oddane do sieci: {kwh(h.exported_kwh, 2)}")
-        lines.append(f"Pobrane z sieci: {kwh(h.imported_kwh, 2)}")
-        return "<br>".join(lines)
-
-    text = [hover(h) for h in typical]
-    if net_metering:
+    for s in shown:
         figure.add_scatter(
-            x=x,
-            y=[float(h.exported_kwh) for h in typical],
-            name="Oddane do sieci",
+            x=[h.start_hour + 0.5 for h in typical],
+            y=[float(s.amount(h)) for h in typical],
+            name=s.label,
             mode="lines",
-            line={"color": SUN, "width": 2.5, "shape": "spline"},
-            fill="tozeroy",
-            hovertext=text,
+            line={"color": s.color, "width": 2.5, "shape": "spline"},
+            fill="tozeroy" if s.area else None,
+            hovertext=hover,
             hoverinfo="text",
         )
-    figure.add_scatter(
-        x=x,
-        y=[float(h.imported_kwh) for h in typical],
-        name="Pobrane z sieci",
-        mode="lines",
-        line={"color": NET, "width": 2.5, "shape": "spline"},
-        hovertext=text,
-        hoverinfo="text",
-    )
     _layout(figure, 280)
     figure.update_yaxes(title={"text": "kWh w godzinie"}, rangemode="tozero", tickformat=",.2f")
     figure.update_xaxes(
