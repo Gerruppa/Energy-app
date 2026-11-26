@@ -22,6 +22,7 @@ AVOIDED = {
     r"\bzniżk\w*": "Opust",
     r"\btankowa\w*": "Ładowanie",
     r"\bbaseline\b": "Linia bazowa",
+    r"\bdan\w* godzinow\w*": "Profil godzinowy",
 }
 
 
@@ -64,3 +65,11 @@ def test_check_catches_a_bare_punkt() -> None:
     assert re.search(pattern, "Nazwa punktu", re.IGNORECASE)
     assert not re.search(pattern, "Nazwa punktu poboru", re.IGNORECASE)
     assert not re.search(pattern, "Dodaj punkt poboru", re.IGNORECASE)
+
+
+def test_check_catches_informal_name_of_the_hourly_profile() -> None:
+    pattern = next(p for p, term in AVOIDED.items() if term == "Profil godzinowy")
+
+    assert re.search(pattern, "Dane godzinowe z eLicznika kończą się", re.IGNORECASE)
+    assert re.search(pattern, "brak danych godzinowych", re.IGNORECASE)
+    assert not re.search(pattern, "Profil godzinowy z eLicznika", re.IGNORECASE)

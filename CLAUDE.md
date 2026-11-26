@@ -25,7 +25,7 @@ Repozytorium, issues i PR-y są publiczne. Hook `.githooks/pre-commit` uruchamia
 
 Każde issue to osobna sesja zaczynana po `/clear`. Wszystko, czego sesja potrzebuje, jest w issue, w tym pliku i w dokumentach z mapy.
 
-1. Przeczytaj issue (`gh issue view N --comments`) i sprawdź, że jego blokery są zamknięte (w Bashu: `gh api repos/Gerruppa/Energy-app/issues/N/dependencies/blocked_by --jq '.[] | "\(.number) \(.state)"'`; PowerShell rozbija `--jq` na kilka argumentów). Otwarty bloker = zatrzymaj się i powiedz użytkownikowi.
+1. Przeczytaj issue (komenda w `docs/agents/issue-tracker.md`; samo `gh issue view N` bywa puste) i sprawdź, że jego blokery są zamknięte (w Bashu: `gh api repos/Gerruppa/Energy-app/issues/N/dependencies/blocked_by --jq '.[] | "\(.number) \(.state)"'`; PowerShell rozbija `--jq` na kilka argumentów). Otwarty bloker = zatrzymaj się i powiedz użytkownikowi.
 2. Pracuj na `main`: `git pull`, a stan roboczy musi być czysty, zanim zaczniesz.
 3. Przeczytaj dokumenty z mapy dla obszaru, który dotykasz.
 4. `/implement N`: `/tdd` na seamach importu i analiz (ADR 0005, `docs/architecture.md`), na koniec pełny zestaw testów (przy zmianach importu także `uv run pytest -m real_pdfs`) i `/mattpocock-skills:code-review`.

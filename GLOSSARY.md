@@ -104,6 +104,7 @@ _Avoid_: produkcja jako nazwa Energii oddanej
 
 **Profil godzinowy**:
 Energia pobrana i oddana w PPE godzina po godzinie, z Raportu wartości godzinowych (albo eksportu eLicznika). Godzina jest oznaczona końcem: „1:00” to godzina od północy do pierwszej.
+_Avoid_: dane godzinowe
 
 **Raport wartości godzinowych**:
 Plik xlsx od Tauron Dystrybucji z Profilem godzinowym jednego PPE: dla każdej godziny Energia pobrana i oddana przed zbilansowaniem i po nim. Przy zmianie czasu na zimowy godzina „3:00” występuje dwa razy, druga z flagą „Godz dodat”.
