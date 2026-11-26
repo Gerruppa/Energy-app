@@ -18,6 +18,8 @@ from pv_app.features.day_by_day.chart import (
     series,
     typical_day_figure,
 )
+from pv_app.features.navigation import open_import
+from pv_app.features.profile_status import profile_status, reminder_text
 from pv_app.features.visibility import shows_day_by_day
 from pv_app.storage.repository import Repository
 
@@ -43,11 +45,13 @@ class DayByDayFeature:
     def render(self, context: FeatureContext) -> None:
         view = day_by_day(context.repository, context.filters)
         label = context.view_period.label
+        reminded = _render_reminder(context)
         if view is None or not view.days:
-            st.info(
-                f"Brak Profilu godzinowego za {label}. Wgraj nowszy Raport wartości godzinowych "
-                "na stronie „Wgraj pliki”."
-            )
+            if not reminded:
+                st.info(
+                    f"Brak Profilu godzinowego za {label}. Wgraj nowszy Raport wartości "
+                    "godzinowych na stronie „Wgraj pliki”."
+                )
             return
         shown = series(context.metering_point.net_metering)
         selected = _render_days(view, shown, label)
@@ -55,6 +59,18 @@ class DayByDayFeature:
         if day is not None:
             _render_hours(day, shown)
         _render_typical_day(view, shown, label)
+
+
+def _render_reminder(context: FeatureContext) -> bool:
+    """Przypomnienie o nowym Raporcie, gdy Profil jest zaległy, a Okres widoku sięga za jego
+    koniec; zwraca, czy je pokazano."""
+    status = profile_status(context.repository, context.metering_point.ppe_number, date.today())
+    if status is None or not status.reminds_in(context.view_period.dates):
+        return False
+    text, button = st.columns([3, 1], vertical_alignment="center")
+    text.warning(reminder_text(status), icon="⚠")
+    button.button("Wgraj Raport", on_click=open_import, key="day_by_day_import")
+    return True
 
 
 def _render_days(view: DayByDay, shown: Sequence[Series], label: str) -> date | None:

@@ -1,4 +1,5 @@
-"""Górna część Przeglądu: status Faktur, zdanie na start, pasek Magazynu energii i kafelki.
+"""Górna część Przeglądu: status Faktur i Profilu godzinowego, zdanie na start, Magazyn
+energii i kafelki.
 
 Rysowane w HTML (``st.html``), żeby mieć tekst 15 px, podpisy 13 px z kontrastem ≥ 4,5:1,
 kafelki w dwóch kolumnach na telefonie i podpowiedzi „?”, które działają po stuknięciu
@@ -31,6 +32,7 @@ from pv_app.features.overview.tiles import (
     next_payment,
     overpayment_signal,
 )
+from pv_app.features.profile_status import ProfileStatus, profile_status, reminder_text
 from pv_app.features.store_expiry import (
     ExpiryOutlook,
     lost_portions,
@@ -103,7 +105,8 @@ STYLE = """
 [class*="st-key-pv_status_"] { border-left: 4px solid; border-radius: 8px;
   padding: 8px 10px 8px 14px; font-size: 15px; }
 .st-key-pv_status_current { border-color: #1e8a4c; background: rgba(30,138,76,.12); }
-.st-key-pv_status_missing { border-color: #c93c2e; background: rgba(201,60,46,.12); }
+.st-key-pv_status_missing, .st-key-pv_status_profile { border-color: #c93c2e;
+  background: rgba(201,60,46,.12); }
 .st-key-pv_status_estimated { border-color: #e0a200; background: rgba(224,162,0,.16); }
 </style>
 """
@@ -131,6 +134,9 @@ def render_top(context: FeatureContext, today: date) -> None:
     status = invoice_status(repository, filters.ppe_number, today)
     if status is not None:
         _render_status(status)
+    profile = profile_status(repository, filters.ppe_number, today)
+    if profile is not None and profile.overdue:
+        _render_profile_reminder(profile)
     last = last_invoice(repository, filters)
     if last is not None:
         st.html(f'<div class="pv-top"><p class="pv-lede">{lede(last, context)}</p></div>')
@@ -170,6 +176,14 @@ def _render_status(status: InvoiceStatus) -> None:
                     f"<span>✓ Faktury są aktualne. Następna: Faktura {escape(expected)}, "
                     f"spodziewana ok. {fmt.day(status.expected_by)}.</span>"
                 )
+
+
+def _render_profile_reminder(status: ProfileStatus) -> None:
+    """Zaległy Profil godzinowy: przypomnienie o nowym Raporcie z przyciskiem do importu."""
+    with st.container(key="pv_status_profile"):
+        text, button = st.columns([3, 1], vertical_alignment="center")
+        text.html(f"<span>⚠ {escape(reminder_text(status))}</span>")
+        button.button("Wgraj Raport", on_click=open_import, key="profile_import")
 
 
 def _when(last: LastInvoice) -> str:

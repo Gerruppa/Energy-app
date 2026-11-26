@@ -109,6 +109,9 @@ Energia pobrana i oddana w PPE godzina po godzinie, z Raportu wartości godzinow
 Plik xlsx od Tauron Dystrybucji z Profilem godzinowym jednego PPE: dla każdej godziny Energia pobrana i oddana przed zbilansowaniem i po nim. Przy zmianie czasu na zimowy godzina „3:00” występuje dwa razy, druga z flagą „Godz dodat”.
 _Avoid_: eksport, raport godzinowy
 
+**Zaległy Profil godzinowy**:
+Profil godzinowy PPE, którego ostatni pełny dzień (doba z 23, 24 albo 25 godzinami) jest starszy niż 14 dni. Sygnał, żeby pobrać z eLicznika nowy Raport wartości godzinowych i wgrać go do aplikacji.
+
 **Typowa doba**:
 Średnia Energia pobrana i oddana w każdej godzinie doby, z Profilu godzinowego w Okresie widoku (po Zbilansowaniu godzinowym). Pokazuje, o której panele dają nadwyżkę, a kiedy dom pobiera z sieci.
 _Avoid_: profil dobowy, średni dzień

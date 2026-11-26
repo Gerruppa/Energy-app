@@ -2,7 +2,7 @@
 
 from calendar import monthrange
 from dataclasses import replace
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from pathlib import Path
 
@@ -13,6 +13,7 @@ from pv_app.app.settings import database_path
 from pv_app.domain.invoice import DateRange
 from pv_app.domain.metering_point import MeteringPoint, SiteIcon
 from pv_app.domain.view_period import ViewPeriodKind
+from pv_app.features.profile_status import PROFILE_OVERDUE_DAYS
 from pv_app.ingest import import_document
 from pv_app.ingest.raw import RawDocument
 from pv_app.storage.sqlite import SqliteRepository
@@ -468,3 +469,45 @@ def test_rising_overpayment_shows_balance_chart_and_signal_on_balance_tile(app: 
     assert len(tiles) == 1 and "Nadpłata rośnie" in tiles[0] and "Wystarczy na ok." in tiles[0]
     costs = app.tabs[2]
     assert "Saldo w czasie" in [s.value for s in costs.subheader]
+
+
+def _home_with_profile(first: date, last: date) -> None:
+    _home_with_october_invoice()
+    repo = SqliteRepository(database_path())
+    repo.add_hourly_readings(days(first, last))
+    repo.close()
+
+
+def test_overdue_hourly_profile_reminds_about_a_new_report_in_overview_and_day_by_day(
+    app: AppTest,
+) -> None:
+    today = date.today()
+    end = today - timedelta(days=PROFILE_OVERDUE_DAYS + 5)
+    _home_with_profile(end - timedelta(days=40), end)
+    app.query_params["okres"] = "caly"
+
+    app.run()
+
+    assert not app.exception
+    overview = app.tabs[0]
+    reminder = [h.proto.body for h in overview.get("html") if "eLicznika" in h.proto.body]
+    assert len(reminder) == 1 and f"kończy się {end:%d.%m.%Y}" in reminder[0]
+    assert "Raport wartości godzinowych" in reminder[0]
+    assert any(f"kończy się {end:%d.%m.%Y}" in w.value for w in app.tabs[3].warning)
+
+    app.button(key="profile_import").click().run()
+
+    assert not app.exception
+    assert "Wgraj pliki" in [t.value for t in app.title]
+
+
+def test_current_hourly_profile_shows_no_reminder(app: AppTest) -> None:
+    today = date.today()
+    _home_with_profile(today - timedelta(days=30), today - timedelta(days=2))
+    app.query_params["okres"] = "caly"
+
+    app.run()
+
+    assert not app.exception
+    assert not [h for h in app.tabs[0].get("html") if "eLicznika" in h.proto.body]
+    assert not app.tabs[3].warning
