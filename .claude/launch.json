@@ -16,6 +16,24 @@
         "--no-browser"
       ],
       "port": 8502
+    },
+    {
+      "name": "demo-pozniej",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": [
+        "run",
+        "python",
+        "-m",
+        "pv_app",
+        "--data-dir",
+        "demo-data",
+        "--today",
+        "2027-01-15",
+        "--port",
+        "8503",
+        "--no-browser"
+      ],
+      "port": 8503
     }
   ]
 }

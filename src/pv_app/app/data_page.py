@@ -68,8 +68,8 @@ def _open_from_list(numbers: list[str]) -> None:
         _open(numbers[rows[0]])
 
 
-def render_data_page(context: FeatureContext, archive: FileArchive, today: date) -> None:
-    point = context.metering_point
+def render_data_page(context: FeatureContext, archive: FileArchive) -> None:
+    point, today = context.metering_point, context.today
     st.title(f"Dane: {point.icon.emoji} {point.name}")
     st.caption(
         "Skąd biorą się liczby na dashboardzie: które okresy mają Fakturę, na jakim odczycie, "

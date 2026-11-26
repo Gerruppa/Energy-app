@@ -44,6 +44,7 @@ Python i biblioteki zarządza `uv` (ADR 0001). Gdy `uv` nie jest w PATH (sesja o
 - Hook prywatności w nowej kopii repozytorium: `git config core.hooksPath .githooks`.
 - Wiersze PDF-a tak, jak widzi je parser: `uv run python scripts/dump_raw.py PLIK.pdf [--page N] [--grep WZORZEC] [--json SZKIELET.json]`; `--cells` pokazuje i zapisuje komórki tabel (stary układ).
 - Dane do oglądania ekranów bez ruszania `data/`: `uv run python scripts/seed_demo.py demo-data [--references]` (`--references`: PDF-y i Raporty wartości godzinowych xlsx), potem podgląd „demo” albo `uv run python -m pv_app --data-dir demo-data --port 8502 --no-browser`.
+- Inne „dziś” aplikacji (stany zależne od daty: Brakująca Faktura, Zaległy Profil godzinowy): `uv run python -m pv_app --today RRRR-MM-DD` albo zmienna `PV_APP_TODAY`. Podgląd „demo-pozniej” (port 8503) to „demo” z `--today 2027-01-15`; Zaległy Profil godzinowy widać tylko na danych z `seed_demo.py --references` (fixture'y nie mają Raportu wartości godzinowych). Gdy dane demo dogonią tę datę, przesuń ją w `.claude/launch.json`.
 - Wydruk „Faktura po ludzku” (przy działającej aplikacji na tych danych): `uv run python scripts/print_check.py demo-data [--ppe SLUG] [--keep KATALOG_PDF]`; kod wyjścia 1, gdy Faktura nie mieści się na 1 stronie A4.
 - Typy i styl: `uv run mypy`, `uv run ruff check .`, `uv run ruff format .`.
 - CI: `.github/workflows/tests.yml` uruchamia ruff, mypy i pytest na Windows przy każdym pushu na `main`.

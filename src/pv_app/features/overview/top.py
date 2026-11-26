@@ -6,7 +6,6 @@ kafelki w dwóch kolumnach na telefonie i podpowiedzi „?”, które działają
 i z klawiatury (``<details>``). Liczby liczą analizy z ``tiles.py`` i ``EnergyStore``.
 """
 
-from datetime import date
 from decimal import Decimal
 from html import escape
 
@@ -127,9 +126,9 @@ PERIOD_COST_HELP = (
 )
 
 
-def render_top(context: FeatureContext, today: date) -> None:
+def render_top(context: FeatureContext) -> None:
     """Status Faktur, zdanie na start, (PPE z net-meteringiem) Magazyn energii i kafelki."""
-    repository, filters = context.repository, context.filters
+    repository, filters, today = context.repository, context.filters, context.today
     st.html(STYLE)
     status = invoice_status(repository, filters.ppe_number, today)
     if status is not None:

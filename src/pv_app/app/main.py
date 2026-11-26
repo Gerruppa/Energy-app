@@ -1,13 +1,11 @@
 """Powłoka Streamlit. Uruchamiana przez ``Start.bat`` (``python -m pv_app``)."""
 
-from datetime import date
-
 import streamlit as st
 
 from pv_app.app.data_page import DATA_PAGE, close_data_page, render_data_page
 from pv_app.app.feature_tabs import render_feature_tabs
 from pv_app.app.import_page import IMPORTING, NEW_METERING_POINT, render_import_page
-from pv_app.app.settings import archive_dir, database_path
+from pv_app.app.settings import archive_dir, database_path, today
 from pv_app.app.settings_page import (
     DELETED_METERING_POINT,
     SETTINGS_PAGE,
@@ -107,12 +105,12 @@ try:
         view_period = current_view_period(invoice_extent(repository, point.ppe_number))
         extent = view_extent(repository, point.ppe_number)
         context = FeatureContext(
-            repository=repository, metering_point=point, view_period=view_period
+            repository=repository, metering_point=point, view_period=view_period, today=today()
         )
         if st.session_state.get(SETTINGS_PAGE):
             render_settings_page(repository, archive, point)
         elif st.session_state.get(DATA_PAGE):
-            render_data_page(context, archive, today=date.today())
+            render_data_page(context, archive)
         elif (invoice_number := requested_invoice()) is not None:
             render_invoice_page(context, archive, invoice_number)
         else:

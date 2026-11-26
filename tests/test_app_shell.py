@@ -6,10 +6,11 @@ from datetime import date, timedelta
 from decimal import Decimal
 from pathlib import Path
 
+import pytest
 from streamlit.testing.v1 import AppTest
 
 from factories import days, forecast, invoice_for
-from pv_app.app.settings import database_path
+from pv_app.app.settings import TODAY_ENV, database_path
 from pv_app.domain.invoice import DateRange
 from pv_app.domain.metering_point import MeteringPoint, SiteIcon
 from pv_app.domain.view_period import ViewPeriodKind
@@ -479,11 +480,11 @@ def _home_with_profile(first: date, last: date) -> None:
 
 
 def test_overdue_hourly_profile_reminds_about_a_new_report_in_overview_and_day_by_day(
-    app: AppTest,
+    app: AppTest, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    today = date.today()
-    end = today - timedelta(days=PROFILE_OVERDUE_DAYS + 5)
-    _home_with_profile(end - timedelta(days=40), end)
+    # Dzień po progu Zaległego Profilu godzinowego, licząc od ostatniego pełnego dnia.
+    monkeypatch.setenv(TODAY_ENV, str(date(2026, 11, 1) + timedelta(PROFILE_OVERDUE_DAYS + 1)))
+    _home_with_profile(date(2026, 9, 22), date(2026, 11, 1))
     app.query_params["okres"] = "caly"
 
     app.run()
@@ -491,9 +492,9 @@ def test_overdue_hourly_profile_reminds_about_a_new_report_in_overview_and_day_b
     assert not app.exception
     overview = app.tabs[0]
     reminder = [h.proto.body for h in overview.get("html") if "eLicznika" in h.proto.body]
-    assert len(reminder) == 1 and f"kończy się {end:%d.%m.%Y}" in reminder[0]
+    assert len(reminder) == 1 and "kończy się 01.11.2026" in reminder[0]
     assert "Raport wartości godzinowych" in reminder[0]
-    assert any(f"kończy się {end:%d.%m.%Y}" in w.value for w in app.tabs[3].warning)
+    assert any("kończy się 01.11.2026" in w.value for w in app.tabs[3].warning)
 
     app.button(key="profile_import").click().run()
 
@@ -501,9 +502,12 @@ def test_overdue_hourly_profile_reminds_about_a_new_report_in_overview_and_day_b
     assert "Wgraj pliki" in [t.value for t in app.title]
 
 
-def test_current_hourly_profile_shows_no_reminder(app: AppTest) -> None:
-    today = date.today()
-    _home_with_profile(today - timedelta(days=30), today - timedelta(days=2))
+def test_hourly_profile_on_the_overdue_threshold_shows_no_reminder(
+    app: AppTest, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Dokładnie próg dni od ostatniego pełnego dnia to jeszcze nie Zaległy Profil godzinowy.
+    monkeypatch.setenv(TODAY_ENV, str(date(2026, 11, 1) + timedelta(PROFILE_OVERDUE_DAYS)))
+    _home_with_profile(date(2026, 9, 22), date(2026, 11, 1))
     app.query_params["okres"] = "caly"
 
     app.run()
@@ -511,3 +515,36 @@ def test_current_hourly_profile_shows_no_reminder(app: AppTest) -> None:
     assert not app.exception
     assert not [h for h in app.tabs[0].get("html") if "eLicznika" in h.proto.body]
     assert not app.tabs[3].warning
+
+
+def test_missing_invoice_is_shown_in_overview_with_import_button(
+    app: AppTest, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Po październikowej Fakturze listopadowa zwykle przychodzi do ok. 14 grudnia.
+    monkeypatch.setenv(TODAY_ENV, "2026-12-15")
+    _home_with_october_invoice()
+
+    app.run()
+
+    assert not app.exception
+    status = [h.proto.body for h in app.tabs[0].get("html") if "Brakuje Faktury" in h.proto.body]
+    assert len(status) == 1 and "14.12.2026" in status[0]
+
+    app.button(key="status_import").click().run()
+
+    assert not app.exception
+    assert "Wgraj pliki" in [t.value for t in app.title]
+
+
+def test_invoice_expected_on_the_day_it_usually_arrives_is_not_missing(
+    app: AppTest, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv(TODAY_ENV, "2026-12-14")
+    _home_with_october_invoice()
+
+    app.run()
+
+    assert not app.exception
+    bodies = [h.proto.body for h in app.tabs[0].get("html")]
+    assert not [b for b in bodies if "Brakuje Faktury" in b]
+    assert any("Faktury są aktualne" in b for b in bodies)

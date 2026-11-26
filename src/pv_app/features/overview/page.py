@@ -1,4 +1,3 @@
-from datetime import date
 from decimal import Decimal
 
 import streamlit as st
@@ -45,7 +44,7 @@ class OverviewFeature:
         if chart is None:
             st.info("Brak Faktur dla tego punktu poboru.")
             return
-        render_top(context, today=date.today())
+        render_top(context)
         title = (
             "Prąd miesiąc po miesiącu"
             if point.net_metering

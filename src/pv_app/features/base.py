@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import date
 from typing import Protocol
 
 from pv_app.domain.invoice import DateRange
@@ -20,6 +21,8 @@ class FeatureContext:
     repository: Repository
     metering_point: MeteringPoint
     view_period: ViewPeriod
+    today: date
+    """„Dziś” aplikacji z ``app/settings.today()``; zakładki nie wołają ``date.today()``."""
 
     @property
     def filters(self) -> Filters:

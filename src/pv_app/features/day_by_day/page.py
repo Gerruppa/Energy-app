@@ -64,7 +64,7 @@ class DayByDayFeature:
 def _render_reminder(context: FeatureContext) -> bool:
     """Przypomnienie o nowym Raporcie, gdy Profil jest zaległy, a Okres widoku sięga za jego
     koniec; zwraca, czy je pokazano."""
-    status = profile_status(context.repository, context.metering_point.ppe_number, date.today())
+    status = profile_status(context.repository, context.metering_point.ppe_number, context.today)
     if status is None or not status.reminds_in(context.view_period.dates):
         return False
     text, button = st.columns([3, 1], vertical_alignment="center")
