@@ -6,13 +6,16 @@ podaje wywołujący; Saldo i ostatnia Faktura dotyczą końca Okresu widoku.
 
 from dataclasses import dataclass
 from datetime import date, timedelta
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from enum import StrEnum
+from itertools import pairwise
 
 from pv_app.domain.invoice import DateRange, Forecast, Invoice, SettlementBasis, Source
 from pv_app.domain.period_cost import PeriodCosts, superseded_invoices
 from pv_app.domain.view_period import calendar_month, last_day, month_index
+from pv_app.features.balance import balance_history, invoice_balance, notes_after
 from pv_app.features.base import Filters
+from pv_app.features.monthly import History
 from pv_app.storage.repository import Repository
 
 INVOICE_ISSUE_DAYS = 14
@@ -123,33 +126,93 @@ def balance(repository: Repository, filters: Filters) -> Balance | None:
     invoice = _last_ended_by(invoices, _view_end(filters))
     if invoice is None:
         return None
-    account = invoice.summary.account_balance
-    if account is None:
-        source = (
-            invoice.correction.difference_source
-            if invoice.correction is not None
-            else invoice.summary.source
-        )
-        return Balance(
-            -invoice.amount_due,
-            from_account=False,
-            invoice_number=invoice.number,
-            source=source,
-            forecast_follows=bool(invoice.forecasts),
-        )
-    issued = invoice.header.issue_date
-    later = [i.header.issue_date for i in invoices if i.header.issue_date > issued]
-    until = min(later, default=date.max)
-    notes = [
-        n for n in repository.list_debit_notes(filters.ppe_number) if issued < n.issue_date < until
-    ]
+    point = invoice_balance(invoice)
+    notes = (
+        notes_after(invoice, invoices, repository.list_debit_notes(filters.ppe_number))
+        if point.from_account
+        else []
+    )
     return Balance(
-        account - sum((n.amount_due for n in notes), Decimal(0)),
-        from_account=True,
+        point.amount - sum((n.amount_due for n in notes), Decimal(0)),
+        from_account=point.from_account,
         invoice_number=invoice.number,
-        source=invoice.summary.source,
+        source=point.source,
         debit_notes=tuple(n.number for n in notes),
         forecast_follows=bool(invoice.forecasts),
+    )
+
+
+RISING_OVERPAYMENT_INVOICES = 3
+"""Na tylu ostatnich Fakturach z rzędu nadpłata musi rosnąć, żeby kafelek Salda dał sygnał."""
+COST_AVERAGE_MONTHS = 12
+"""Z ilu ostatnich miesięcy średni Koszt okresu mówi, na ile starczy nadpłata."""
+
+
+@dataclass(frozen=True)
+class OverpaymentSignal:
+    """Nadpłata rośnie, a harmonogram Prognoz przewiduje dalsze wpłaty."""
+
+    overpayment: Decimal
+    """Nadpłata z kafelka Salda (z Notami obciążeniowymi po ostatniej Fakturze)."""
+    invoices: tuple[str, ...]
+    """Faktury, na których nadpłata była większa niż na poprzedniej, od najstarszej."""
+    average_monthly_cost: Decimal
+    """Średni Koszt okresu na miesiąc z miesięcy objętych Fakturami w całości."""
+    cost_months: int
+    """Z ilu miesięcy (z ostatnich ``COST_AVERAGE_MONTHS``) jest średnia."""
+    months_covered: int | None
+    """Na ile miesięcy (zaokrąglone) wystarczy nadpłata; ``None`` przy średniej zero lub
+    mniej."""
+
+
+def overpayment_signal(
+    repository: Repository, filters: Filters, today: date
+) -> OverpaymentSignal | None:
+    """Sygnał rosnącej nadpłaty dla kafelka Salda; ``None``, gdy nadpłata nie rosła na
+    ``RISING_OVERPAYMENT_INVOICES`` ostatnich Fakturach zakończonych do końca Okresu widoku
+    (każda z Saldem, większym niż na poprzedniej) albo gdy żadna Prognoza z harmonogramu
+    ostatniej Faktury nie ma od ``today`` nic do zapłaty."""
+    ppe = filters.ppe_number
+    view_end = _view_end(filters)
+    points = [
+        p
+        for p in balance_history(repository, ppe)
+        if p.period is not None and p.period.end <= view_end
+    ]
+    recent = points[-(RISING_OVERPAYMENT_INVOICES + 1) :]
+    if len(recent) <= RISING_OVERPAYMENT_INVOICES or not all(p.from_account for p in recent):
+        return None
+    # Niedopłata przed pierwszą z Faktur to zero nadpłaty: każda nadpłata jest od niej większa.
+    if not all(
+        later.amount > max(earlier.amount, Decimal(0)) for earlier, later in pairwise(recent)
+    ):
+        return None
+    invoices = repository.list_invoices(ppe)
+    last = _last_ended_by(invoices, view_end)
+    if last is None or last.number != recent[-1].document:
+        return None
+    if not any(f.due_date >= today and f.amount_due > 0 for f in _schedule(last, invoices)):
+        return None
+    current = balance(repository, filters)
+    if current is None or current.amount <= 0:
+        return None
+    end = month_index(last.header.billing_period.end)
+    comparison = History(repository, ppe).compare(
+        range(end - COST_AVERAGE_MONTHS + 1, end + 1), with_year_earlier=False
+    )
+    if comparison is None:
+        return None
+    totals = comparison[0]
+    average = (totals.period_cost / len(totals.months)).quantize(Decimal("0.01"))
+    months = (
+        int((current.amount / average).to_integral_value(ROUND_HALF_UP)) if average > 0 else None
+    )
+    return OverpaymentSignal(
+        overpayment=current.amount,
+        invoices=tuple(p.document for p in recent[1:]),
+        average_monthly_cost=average,
+        cost_months=len(totals.months),
+        months_covered=months,
     )
 
 

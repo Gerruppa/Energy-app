@@ -18,15 +18,18 @@ from pv_app.features.base import FeatureContext
 from pv_app.features.navigation import invoice_href, open_import
 from pv_app.features.overview.analysis import store_tile
 from pv_app.features.overview.tiles import (
+    COST_AVERAGE_MONTHS,
     Balance,
     InvoiceStatus,
     LastInvoice,
     NextPayment,
+    OverpaymentSignal,
     StatusKind,
     balance,
     invoice_status,
     last_invoice,
     next_payment,
+    overpayment_signal,
 )
 from pv_app.features.terms import ESTIMATE_HELP, FORECAST_HELP, store_help
 
@@ -68,6 +71,9 @@ STYLE = """
   margin: 2px 0; }
 .pv-fn, .pv-note { font-size: 13px; }
 .pv-fn a { color: inherit; font-weight: 600; text-decoration: underline; }
+.pv-signal { margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(128,128,128,.35);
+  font-size: 13px; }
+.pv-signal p { margin: 0 0 4px; }
 .pv-help summary { list-style: none; cursor: pointer; font-size: 13px;
   display: inline-flex; align-items: center; gap: 6px; }
 .pv-help summary::-webkit-details-marker { display: none; }
@@ -125,7 +131,7 @@ def render_top(context: FeatureContext, today: date) -> None:
     if last is None:
         return
     facts = [
-        _balance_fact(balance(repository, filters)),
+        _balance_fact(balance(repository, filters), overpayment_signal(repository, filters, today)),
         _payment_fact(next_payment(repository, filters.ppe_number, today)),
         _invoice_fact(last),
     ]
@@ -197,7 +203,35 @@ def _fact(label: str, help_text: str, value: str, note: str) -> str:
     )
 
 
-def _balance_fact(result: Balance | None) -> str:
+def signal_text(signal: OverpaymentSignal) -> str:
+    """Zdanie o rosnącej nadpłacie pod kafelkiem Salda, z podpowiedzią „?” o wyliczeniu
+    (HTML)."""
+    why = (
+        f"Nadpłata rosła na {len(signal.invoices)} ostatnich Fakturach "
+        f"({', '.join(signal.invoices)}), a harmonogram Prognoz przewiduje dalsze wpłaty. "
+    )
+    average = (
+        f"średni Koszt okresu {fmt.zl(signal.average_monthly_cost)} na miesiąc (z "
+        f"{signal.cost_months} mies. z ostatnich {COST_AVERAGE_MONTHS} objętych Fakturami "
+        "w całości)"
+    )
+    if signal.months_covered is None:
+        label = "Nadpłata nie topnieje"
+        how = f"Koszt okresu nie był większy od zera: {average}."
+    else:
+        months = signal.months_covered
+        label = (
+            "Wystarczy na niecały miesiąc" if months == 0 else f"Wystarczy na ok. {months} mies."
+        )
+        how = f"Nadpłata {fmt.zl(signal.overpayment)} podzielona przez {average}, zaokrąglone."
+    return (
+        '<div class="pv-signal"><p>↗ <b>Nadpłata rośnie.</b> Możecie poprosić Tauron '
+        "o zwrot nadpłaty albo o obniżenie Prognoz.</p>"
+        f"{_help(label, why + how)}</div>"
+    )
+
+
+def _balance_fact(result: Balance | None, signal: OverpaymentSignal | None = None) -> str:
     if result is None:
         return _fact("Saldo", BALANCE_HELP, "—", "brak Faktury do końca okresu")
     source = escape(fmt.source(result.source))
@@ -217,11 +251,12 @@ def _balance_fact(result: Balance | None) -> str:
     if result.amount == 0:
         return _fact("Saldo", BALANCE_HELP, fmt.zl(Decimal(0)), f"rozliczone na zero. {source}")
     if result.overpaid:
+        extra = signal_text(signal) if signal is not None else ""
         return _fact(
             "Nadpłata w Tauronie",
             BALANCE_HELP,
             fmt.zl(result.amount),
-            f"zostaje na koncie tego punktu poboru{notes}. {source}",
+            f"zostaje na koncie tego punktu poboru{notes}. {source}{extra}",
         )
     where = "doliczona do najbliższej Prognozy" if result.forecast_follows else "do dopłaty"
     return _fact("Niedopłata", BALANCE_HELP, fmt.zl(-result.amount), f"{where}{notes}. {source}")

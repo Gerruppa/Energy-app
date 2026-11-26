@@ -63,10 +63,11 @@ Okresy rozliczeniowe mają od 1 do 12 miesięcy. Każdy okres rozkładany na mie
 
 ## F0. Saldo z Tauronem
 
-**Status:** w trakcie. Zrobione (#10): Saldo na koniec Okresu widoku (z Faktury, z Notami obciążeniowymi wystawionymi po niej; gdy Faktura nie podaje Salda, tylko jej „do zapłaty / do zwrotu”), najbliższa płatność z harmonogramu Prognoz, Prognozy przerywaną linią obok Faktur (PPE bez fotowoltaiki). Zostało: Saldo w czasie, sygnał rosnącej nadpłaty (#19).
+**Status:** zrobione. Saldo na koniec Okresu widoku (#10; z Faktury, z Notami obciążeniowymi wystawionymi po niej; gdy Faktura nie podaje Salda, tylko jej „do zapłaty / do zwrotu”), najbliższa płatność z harmonogramu Prognoz, Prognozy przerywaną linią obok Faktur (PPE bez fotowoltaiki). Saldo w czasie (#19): wykres w zakładce Koszty i Faktury, kropka na każdą Fakturę (kolor Podstawy rozliczenia) i Notę obciążeniową w dniu wystawienia, podpowiedź z numerem i stroną; Faktury bez Salda pustym kółkiem z kwotą do zapłaty / do zwrotu, bez linii. Sygnał Rosnącej nadpłaty w kafelku Salda (#19): nadpłata większa na każdej z 3 ostatnich Faktur (`RISING_OVERPAYMENT_INVOICES`) i Prognoza z harmonogramu ostatniej Faktury z kwotą do zapłaty od dziś; „Wystarczy na ok. X mies.” = nadpłata ÷ średni Koszt okresu na miesiąc z miesięcy objętych Fakturami w całości spośród ostatnich 12 (do miesiąca końca ostatniej Faktury), z opisem w „?”.
 
 Otwarte pytania:
-- Czy Saldo na następnej Fakturze zawiera już Noty obciążeniowe wystawione przed nią? Model tak zakłada (Nota liczy się w Saldzie tylko do następnej Faktury).
+- Czy Saldo na następnej Fakturze zawiera już Noty obciążeniowe wystawione przed nią? Model tak zakłada (Nota liczy się w Saldzie tylko do następnej Faktury); Saldo w czasie stosuje tę samą regułę. Do sprawdzenia, gdy w danych pojawi się Nota wystawiona między dwiema Fakturami nowego układu (dziś Noty są tylko przy Fakturach bez Salda, więc na wykresie nie mają punktu).
+- Sygnał Rosnącej nadpłaty nie działa przy rozliczeniu miesięcznym bez harmonogramu Prognoz (Dom od IX 2026): Tauron wtedy nie pobiera Prognoz, więc nie ma czego obniżać; nadpłata może rosnąć tylko z Not obciążeniowych.
 - Termin płatności samej Faktury nie jest odczytywany; bez harmonogramu Prognoz kafelek pokazuje kwotę bez terminu.
 
 Saldo każdego PPE w czasie, Prognozy zapłacone vs. rzeczywisty koszt, nadchodzące płatności z harmonogramu. Sygnał, gdy nadpłata rośnie bez potrzeby (w PPE Dom nadpłata narasta, bo Opusty pokrywają pobór, a Prognozy były płacone).

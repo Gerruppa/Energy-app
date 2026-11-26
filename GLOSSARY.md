@@ -35,6 +35,12 @@ _Avoid_: blankiet, rata
 Stan rozrachunku z Tauronem dla jednego PPE po Fakturze: nadpłata (Tauron winien) lub niedopłata (do dopłaty). Saldo jednego PPE nie przechodzi na inny.
 _Avoid_: nadpłata/niedopłata jako osobne pojęcia
 
+**Saldo w czasie**:
+Saldo po każdej Fakturze i Nocie obciążeniowej, w dniu ich wystawienia. Nota zmienia Saldo poprzedniej Faktury o swoje „do zapłaty”; Saldo następnej Faktury już ją zawiera. Faktura bez Salda (stary układ, Faktura korygująca) daje tylko „do zapłaty / do zwrotu”, a Noty po niej nie mają stanu.
+
+**Rosnąca nadpłata**:
+Saldo z nadpłatą większą na każdej z 3 ostatnich Faktur niż na poprzedniej (każda z tych Faktur podaje Saldo). Razem z harmonogramem Prognoz, który przewiduje dalsze wpłaty, to sygnał, że można poprosić Tauron o zwrot nadpłaty albo obniżenie Prognoz.
+
 **Brakująca Faktura**:
 Faktura za Okres rozliczeniowy, który już się skończył, a której po zwykłym czasie wystawienia (ok. 2 tygodnie) nie ma w danych.
 

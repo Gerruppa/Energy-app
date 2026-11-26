@@ -8,6 +8,7 @@ from pv_app.domain.invoice import SettlementBasis
 from pv_app.domain.metering_point import MeteringPoint
 from pv_app.domain.view_period import ViewPeriodKind, month_label
 from pv_app.features import formatting as fmt
+from pv_app.features.balance import balance_history
 from pv_app.features.base import FeatureContext
 from pv_app.features.costs.analysis import (
     CostSummary,
@@ -18,7 +19,7 @@ from pv_app.features.costs.analysis import (
     invoice_list,
     unit_price_history,
 )
-from pv_app.features.costs.chart import unit_price_figure, units
+from pv_app.features.costs.chart import balance_figure, unit_price_figure, units
 from pv_app.features.monthly import PeriodTotals, monthly_chart
 from pv_app.features.monthly_figure import COST_BLOCK_NOTE, cost_figure
 from pv_app.features.navigation import open_invoice
@@ -49,6 +50,12 @@ UNIT_PRICES_HELP = (
     "Ceny jednostkowe netto z Pozycji faktury, Faktura po Fakturze, tak jak na Fakturze "
     "(bez VAT). Pokazują, kiedy Tauron zmieniał stawki."
 )
+BALANCE_HISTORY_HELP = (
+    "Saldo to stan rozrachunku z Tauronem po każdej Fakturze: nad zerem nadpłata (pieniądze "
+    "na koncie w Tauronie), pod zerem niedopłata. Nota obciążeniowa zmienia Saldo od dnia "
+    "wystawienia. Starsze Faktury nie podają Salda, tylko kwotę do zapłaty albo do zwrotu: "
+    "puste kółko, bez linii, bo stanu konta nie znamy."
+)
 UNIT_TITLES = {"kWh": "Ceny za kWh", "mc": "Opłaty za miesiąc"}
 
 
@@ -68,6 +75,7 @@ class CostsFeature:
         if summary is not None:
             _render_groups(context, summary)
         _render_unit_prices(context)
+        _render_balance_history(context)
         _render_invoices(context)
 
 
@@ -243,6 +251,29 @@ def _render_unit_prices(context: FeatureContext) -> None:
     st.caption(
         "Ceny netto z Pozycji faktury. Gdy cena zmieniła się w trakcie Okresu rozliczeniowego, "
         "kreska dzieli się na podokresy z Faktury."
+    )
+
+
+def _render_balance_history(context: FeatureContext) -> None:
+    points = balance_history(context.repository, context.metering_point.ppe_number)
+    if not points:
+        return
+    st.subheader("Saldo w czasie", help=BALANCE_HISTORY_HELP)
+    if not any(p.from_account for p in points):
+        st.caption(
+            "Faktury tego punktu poboru nie podają Salda, tylko kwotę do zapłaty albo do "
+            "zwrotu, więc wykresu Salda nie ma."
+        )
+        return
+    st.plotly_chart(
+        balance_figure(points, context.view_period.dates),
+        config={"displayModeBar": False},
+        key="balance_history",
+    )
+    st.caption(
+        "Kropka na każdą Fakturę (kolor: Podstawa rozliczenia) i Notę obciążeniową, w dniu "
+        "wystawienia; najedź na kropkę, żeby zobaczyć numer Faktury i stronę. Wyróżniony "
+        "fragment to wybrany Okres widoku."
     )
 
 

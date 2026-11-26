@@ -1,13 +1,16 @@
 """Powłoka Streamlit: co widzi użytkownik po starcie."""
 
+from calendar import monthrange
 from dataclasses import replace
 from datetime import date
+from decimal import Decimal
 from pathlib import Path
 
 from streamlit.testing.v1 import AppTest
 
-from factories import days
+from factories import days, forecast, invoice_for
 from pv_app.app.settings import database_path
+from pv_app.domain.invoice import DateRange
 from pv_app.domain.metering_point import MeteringPoint, SiteIcon
 from pv_app.domain.view_period import ViewPeriodKind
 from pv_app.ingest import import_document
@@ -438,3 +441,30 @@ def test_back_from_invoice_keeps_the_tab_and_overview_link_opens_overview(
     next(b for b in app.button if b.label == "Pokaż ten okres w Przeglądzie").click().run()
     assert "zakladka" not in app.query_params
     assert _active_tab(app) == "Przegląd"
+
+
+def test_rising_overpayment_shows_balance_chart_and_signal_on_balance_tile(app: AppTest) -> None:
+    repo = SqliteRepository(database_path())
+    repo.add_metering_point(HOME)
+    for index, amount in enumerate(("100.00", "200.00", "300.00", "400.00")):
+        month = 7 + index
+        period = DateRange(date(2026, month, 1), date(2026, month, monthrange(2026, month)[1]))
+        invoice = invoice_for(period, "150", "300", number=f"S/{index}", fixed_gross="40.00")
+        invoice = replace(
+            invoice,
+            header=replace(invoice.header, issue_date=date(2026, month + 1, 5)),
+            summary=replace(invoice.summary, account_balance=Decimal(amount)),
+        )
+        if index == 3:
+            schedule = DateRange(date(2099, 1, 1), date(2099, 1, 31))
+            invoice = replace(invoice, forecasts=(forecast("S/3/1", schedule, date(2099, 1, 15)),))
+        repo.add_invoice(invoice)
+    repo.close()
+
+    app.run()
+
+    assert not app.exception
+    tiles = [h.proto.body for h in app.tabs[0].get("html") if "pv-facts" in h.proto.body]
+    assert len(tiles) == 1 and "Nadpłata rośnie" in tiles[0] and "Wystarczy na ok." in tiles[0]
+    costs = app.tabs[2]
+    assert "Saldo w czasie" in [s.value for s in costs.subheader]
