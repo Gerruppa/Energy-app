@@ -104,10 +104,10 @@ def _render_tabs(repository: Repository, point: MeteringPoint) -> None:
             "rodzaj rozliczenia aplikacja odczytuje z Faktur."
         )
     if shows_day_by_day(repository, point):
-        notes.append("Dzień po dniu (w przygotowaniu): Profil godzinowy jest już wgrany.")
+        notes.append("Dzień po dniu: Profil godzinowy jest wgrany.")
     else:
         notes.append(
-            "Dzień po dniu (w przygotowaniu) pojawi się po wgraniu Raportu wartości godzinowych "
+            "Dzień po dniu pojawi się po wgraniu Raportu wartości godzinowych "
             "z eLicznika (plik xlsx od Tauron Dystrybucji) na stronie „Wgraj pliki”."
         )
     if shows_car(repository, point):

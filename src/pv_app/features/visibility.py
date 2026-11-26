@@ -1,8 +1,8 @@
 """Reguły widoczności zakładek: kiedy zakładka pojawia się dla PPE.
 
-Wspólne dla ``is_available`` zakładek i ustawień PPE (podpowiedzi, czego brakuje). Zakładki
-Dzień po dniu (F4/F5) i Auto (F6) jeszcze nie istnieją, ale ich reguły już tak, żeby ustawienia
-PPE i dane w bazie od początku decydowały o widoczności.
+Wspólne dla ``is_available`` zakładek i ustawień PPE (podpowiedzi, czego brakuje). Zakładka Auto
+(F6) jeszcze nie istnieje, ale jej reguła już tak, żeby ustawienia PPE od początku decydowały
+o widoczności.
 """
 
 from pv_app.domain.metering_point import MeteringPoint

@@ -57,6 +57,12 @@ def test_day_by_day_after_hourly_profile_of_that_metering_point_is_uploaded() ->
 
     assert shows_day_by_day(repository, HOME)
     assert not shows_day_by_day(repository, FLAT)
+    assert titles(repository, HOME) == [
+        "Przegląd",
+        "Magazyn energii",
+        "Koszty i Faktury",
+        "Dzień po dniu",
+    ]
 
 
 def test_car_tab_after_charging_is_switched_on() -> None:

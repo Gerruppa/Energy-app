@@ -88,7 +88,7 @@ Stan Magazynu energii w czasie, przyrosty i odbiory na okres, Udział Sprzedawcy
 
 ## F4. Import Profilu godzinowego
 
-**Status:** w trakcie. Zrobione (XI 2026): import Raportu wartości godzinowych (xlsx od Tauron Dystrybucji) na stronie „Wgraj pliki”, zapis Profilu godzinowego w bazie (nowszy raport nadpisuje te same godziny), raport nieznanego PPE odrzucany. Lokalny test na prawdziwych danych: sumy po Zbilansowaniu godzinowym zgadzają się z Fakturami (różnica poniżej 1%), sumy przed zbilansowaniem są o kilkadziesiąt procent wyższe. Porównanie sum z Fakturami na stronie „Dane” (#16): dla każdego niezastąpionego Okresu rozliczeniowego, który Profil pokrywa choć jednym dniem, Energia pobrana i oddana z obu źródeł i różnica; powyżej 2% „do sprawdzenia”, przy niepełnym pokryciu liczba brakujących dni (doba pełna przy 23, 24 albo 25 godzinach); okresy po końcu Profilu mają wiersz z brakującymi dniami (przypomnienie o nowym Raporcie), a okresy sprzed jego początku są tylko policzone. Zostało: zakładka Dzień po dniu (#15), eksport CSV z eLicznika, jeśli kiedyś będzie potrzebny.
+**Status:** zrobione (poza eksportem CSV). Zrobione (XI 2026): import Raportu wartości godzinowych (xlsx od Tauron Dystrybucji) na stronie „Wgraj pliki”, zapis Profilu godzinowego w bazie (nowszy raport nadpisuje te same godziny), raport nieznanego PPE odrzucany. Lokalny test na prawdziwych danych: sumy po Zbilansowaniu godzinowym zgadzają się z Fakturami (różnica poniżej 1%), sumy przed zbilansowaniem są o kilkadziesiąt procent wyższe. Porównanie sum z Fakturami na stronie „Dane” (#16): dla każdego niezastąpionego Okresu rozliczeniowego, który Profil pokrywa choć jednym dniem, Energia pobrana i oddana z obu źródeł i różnica; powyżej 2% „do sprawdzenia”, przy niepełnym pokryciu liczba brakujących dni (doba pełna przy 23, 24 albo 25 godzinach); okresy po końcu Profilu mają wiersz z brakującymi dniami (przypomnienie o nowym Raporcie), a okresy sprzed jego początku są tylko policzone. Zakładka Dzień po dniu (#15): słupek na każdy dzień Okresu widoku (oddane w górę, pobrane w dół; dzień bez pełnego Profilu kreskowany), godziny klikniętego dnia (na start ostatni dzień z Profilem; 23 albo 25 słupków przy zmianie czasu), Typowa doba z podpowiedzią, w których godzinach panele dają nadwyżkę; tylko ilości po Zbilansowaniu godzinowym, podpowiedź „?” z prostym wyjaśnieniem. Przełącznik Okresu widoku sięga do ostatniego dnia Profilu (`view_extent`), widok na start dalej z Faktur. Zostało: eksport CSV z eLicznika, jeśli kiedyś będzie potrzebny.
 
 Ustalenia z triage #15 (XI 2026):
 - Zakładka Dzień po dniu: dni w Okresie widoku (oddane w górę, pobrane w dół), godziny klikniętego dnia, Typowa doba; tylko ilości po Zbilansowaniu godzinowym.
@@ -99,11 +99,11 @@ Ustalenia z triage #15 (XI 2026):
 Upload xlsx → Profil godzinowy dla PPE Dom (Mieszkanie nie ma eLicznika). Porównanie sum z Fakturami (ADR 0003).
 
 Otwarte pytania:
-- Profil godzinowy zapisuje czas lokalny jak w raporcie (koniec godziny i flaga dodatkowej godziny); analizy dobowe muszą pamiętać o dniach z 23 i 25 godzinami.
+- Profil godzinowy zapisuje czas lokalny jak w raporcie (koniec godziny i flaga dodatkowej godziny); analizy dobowe muszą pamiętać o dniach z 23 i 25 godzinami (Dzień po dniu: dodatkowa godzina to jeszcze jedna próbka w Typowej dobie, brakująca jej nie zaniża).
 
 ## F5. Profil zużycia
 
-**Status:** w trakcie: Typowa doba w zakładce Dzień po dniu (#15). Zostało: dzień tygodnia, sezonowość, godziny szczytu.
+**Status:** w trakcie. Zrobione: Typowa doba w zakładce Dzień po dniu (#15). Zostało: dzień tygodnia, sezonowość, godziny szczytu.
 
 Rozkład Energii pobranej i oddanej w ciągu doby i tygodnia, sezonowość, godziny szczytu.
 

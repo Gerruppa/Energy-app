@@ -3,11 +3,17 @@
 from pv_app.domain.metering_point import MeteringPoint
 from pv_app.features.base import Feature
 from pv_app.features.costs.page import CostsFeature
+from pv_app.features.day_by_day.page import DayByDayFeature
 from pv_app.features.energy_store.page import EnergyStoreFeature
 from pv_app.features.overview.page import OverviewFeature
 from pv_app.storage.repository import Repository
 
-FEATURES: tuple[Feature, ...] = (OverviewFeature(), EnergyStoreFeature(), CostsFeature())
+FEATURES: tuple[Feature, ...] = (
+    OverviewFeature(),
+    EnergyStoreFeature(),
+    CostsFeature(),
+    DayByDayFeature(),
+)
 
 
 def available_features(repository: Repository, metering_point: MeteringPoint) -> list[Feature]:

@@ -37,7 +37,8 @@ def current_view_period(extent: DateRange | None) -> ViewPeriod:
 
 
 def render_view_period_switcher(period: ViewPeriod, extent: DateRange | None) -> None:
-    """Cały okres · Rok · Kwartał · Miesiąc i strzałki ◀ ▶ do sąsiednich okresów z Fakturami."""
+    """Cały okres · Rok · Kwartał · Miesiąc i strzałki ◀ ▶ do sąsiednich okresów
+    z Fakturami albo Profilem godzinowym (``extent``: ``view_extent``)."""
     if extent is None:
         return
     kind_column, previous_column, label_column, next_column = st.columns(
@@ -68,7 +69,7 @@ def render_view_period_switcher(period: ViewPeriod, extent: DateRange | None) ->
             "◀",
             key="view_period_previous",
             help=f"Poprzedni: {previous.label}",
-            disabled=not _has_invoices(previous, extent),
+            disabled=not _has_data(previous, extent),
             on_click=_set,
             args=(previous,),
         )
@@ -79,12 +80,12 @@ def render_view_period_switcher(period: ViewPeriod, extent: DateRange | None) ->
             "▶",
             key="view_period_next",
             help=f"Następny: {following.label}",
-            disabled=not _has_invoices(following, extent),
+            disabled=not _has_data(following, extent),
             on_click=_set,
             args=(following,),
         )
 
 
-def _has_invoices(period: ViewPeriod, extent: DateRange) -> bool:
+def _has_data(period: ViewPeriod, extent: DateRange) -> bool:
     dates = period.dates
     return dates is None or dates.overlaps(extent)

@@ -338,3 +338,32 @@ def test_data_page_with_hourly_profile_compares_it_with_invoices(app: AppTest) -
     table = app.dataframe[-1].value
     assert list(table["Okres rozliczeniowy"]) == ["01.10.2026 – 31.10.2026"]
     assert list(table["Porównanie"]) == ["brakuje 11 dni w Profilu godzinowym"]
+
+
+def test_day_by_day_tab_reaches_days_after_the_last_invoice(app: AppTest) -> None:
+    _home_with_october_invoice()
+    repo = SqliteRepository(database_path())
+    repo.add_hourly_readings(days(date(2026, 10, 1), date(2026, 11, 5)))
+    repo.close()
+
+    app.run()
+
+    assert not app.exception
+    # Widok na start bez zmian: ostatni miesiąc objęty Fakturami.
+    assert app.query_params["okres"] == "2026-10"
+    assert [t.label for t in app.tabs][-1] == "Dzień po dniu"
+    day_by_day = app.tabs[3]
+    assert [s.value for s in day_by_day.subheader] == [
+        "Dzień po dniu: październik 2026",
+        "Godzina po godzinie: 31.10.2026",
+        "Typowa doba: październik 2026",
+    ]
+    assert "Zbilansowaniu godzinowym" in (day_by_day.subheader[0].help or "")
+
+    next(b for b in app.button if b.label == "▶").click().run()
+
+    assert not app.exception
+    assert app.query_params["okres"] == "2026-11"
+    assert [i.value for i in app.tabs[2].info] == ["Brak Faktur za listopad 2026."]
+    assert app.tabs[3].subheader[1].value == "Godzina po godzinie: 05.11.2026"
+    assert app.button(key="view_period_next").disabled

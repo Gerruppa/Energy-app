@@ -16,7 +16,7 @@ from pv_app.app.settings_page import (
 from pv_app.app.view_period_switcher import current_view_period, render_view_period_switcher
 from pv_app.app.wizard_page import ADDING_METERING_POINT, render_naming_step, render_wizard
 from pv_app.features import available_features
-from pv_app.features.base import FeatureContext, invoice_extent
+from pv_app.features.base import FeatureContext, invoice_extent, view_extent
 from pv_app.features.invoice_view.page import render_invoice_page
 from pv_app.features.navigation import METERING_POINT_QUERY_KEY, forget_view, requested_invoice
 from pv_app.storage.archive import FileArchive
@@ -101,8 +101,9 @@ try:
             _close_pages()
             st.session_state[ADDING_METERING_POINT] = True
             st.rerun()
-        extent = invoice_extent(repository, point.ppe_number)
-        view_period = current_view_period(extent)
+        # Widok na start z Faktur; strzałki ◀ ▶ sięgają też do końca Profilu godzinowego.
+        view_period = current_view_period(invoice_extent(repository, point.ppe_number))
+        extent = view_extent(repository, point.ppe_number)
         context = FeatureContext(
             repository=repository, metering_point=point, view_period=view_period
         )

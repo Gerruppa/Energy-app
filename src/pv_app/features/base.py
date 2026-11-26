@@ -48,3 +48,18 @@ def invoice_extent(repository: Repository, ppe_number: str) -> DateRange | None:
     if not periods:
         return None
     return DateRange(min(p.start for p in periods), max(p.end for p in periods))
+
+
+def view_extent(repository: Repository, ppe_number: str) -> DateRange | None:
+    """Zakres Faktur i Profilu godzinowego PPE razem; ``None`` bez obu.
+
+    Granice przełącznika Okresu widoku (strzałki ◀ ▶): dni po ostatniej Fakturze są dostępne,
+    gdy Profil godzinowy je obejmuje. Widok na start dalej liczy się z ``invoice_extent``."""
+    invoices = invoice_extent(repository, ppe_number)
+    ranges = [invoices] if invoices is not None else []
+    days = [r.day for r in repository.list_hourly_readings(ppe_number)]
+    if days:
+        ranges.append(DateRange(min(days), max(days)))
+    if not ranges:
+        return None
+    return DateRange(min(r.start for r in ranges), max(r.end for r in ranges))
