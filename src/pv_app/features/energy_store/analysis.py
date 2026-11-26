@@ -6,6 +6,7 @@ from decimal import Decimal
 
 from pv_app.domain.energy_store import EnergyStore, StoreMovement, StoreState
 from pv_app.features.base import Filters
+from pv_app.features.store_expiry import ExpiryOutlook, expiry_outlook
 from pv_app.storage.repository import Repository
 
 
@@ -20,6 +21,8 @@ class EnergyStoreView:
     """Udział Sprzedawcy z Faktur w ``movements``."""
     history: tuple[StoreMovement, ...]
     """Wszystkie ruchy od najstarszego (wykres stanu w czasie)."""
+    outlook: tuple[ExpiryOutlook, ...]
+    """Porcje wygasające wkrótce i ile z nich wygaśnie (szacunek)."""
 
 
 def view_end(filters: Filters) -> date:
@@ -38,9 +41,11 @@ def energy_store_view(repository: Repository, filters: Filters) -> EnergyStoreVi
     movements = tuple(
         m for m in reversed(store.movements) if dates is None or dates.overlaps(m.period)
     )
+    state = store.state_on(view_end(filters))
     return EnergyStoreView(
-        state=store.state_on(view_end(filters)),
+        state=state,
         movements=movements,
         seller_share_kwh=sum((m.seller_share_kwh for m in movements), Decimal(0)),
         history=store.movements,
+        outlook=expiry_outlook(repository, filters.ppe_number, state) if state else (),
     )

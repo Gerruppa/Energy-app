@@ -13,6 +13,7 @@ __all__ = [
     "during",
     "for_period",
     "in_month",
+    "in_month_name",
     "kwh",
     "period",
     "source",
@@ -57,6 +58,11 @@ _MONTHS_LOCATIVE = (
 def in_month(index: int) -> str:
     """„w październiku 2026” dla ``month_index``."""
     return f"w {_MONTHS_LOCATIVE[index % 12]} {index // 12}"
+
+
+def in_month_name(index: int) -> str:
+    """„w październiku” dla ``month_index``, bez roku."""
+    return f"w {_MONTHS_LOCATIVE[index % 12]}"
 
 
 def for_period(value: DateRange) -> str:

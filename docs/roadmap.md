@@ -85,7 +85,7 @@ Koszt miesięczny dla każdego PPE i łącznie, podział na Składniki zmienne i
 Otwarte pytania:
 - Tauron rozlicza Wygaśnięcie zapewne miesiącami oddania, a model traktuje Fakturę za kilka miesięcy jako jedną porcję; dokładniejszy podział da Profil godzinowy (F4).
 
-Do triage: Wygaśnięcie w przeliczeniu na dni poboru, ⚠ tylko przy porcji, której pobór nie zużyje (#20).
+Zrobione (XI 2026, #20): Wygaśnięcie w przeliczeniu na dni poboru. Przy każdej porcji wygasającej w 3 miesiące zdanie prostym językiem: ⚠ i ile wygaśnie, w dniach poboru domu w miesiącu Wygaśnięcia, albo ✓ „zdąży się wykorzystać”, gdy szacowany pobór zużyje ją wcześniej; czerwony segment paska tylko przy porcji, z której coś wygaśnie. Pobór do Wygaśnięcia: ten sam miesiąc rok wcześniej z Faktur (rozkład na miesiące), a miesiąc bez pełnej historii rok wcześniej — średnia dzienna z Faktur z ostatnich 12 miesięcy przed dniem stanu; porcje zdejmowane od najstarszej, wygasła część poboru nie pokrywa. Podpowiedź „?” opisuje sposób wyliczenia. W Przeglądzie i w zakładce Magazyn energii.
 
 Stan Magazynu energii w czasie, przyrosty i odbiory na okres, Udział Sprzedawcy, Wygaśnięcia wyliczone z różnicy stanu końcowego i początkowego kolejnych Faktur, porcje wygasające w najbliższych 12 miesiącach.
 

@@ -17,6 +17,7 @@ from pv_app.features.monthly import (
     invoice_months,
     months_of,
 )
+from pv_app.features.store_expiry import ExpiryOutlook, expiry_outlook
 from pv_app.storage.repository import Repository
 
 FORECAST_MONTHS_AHEAD = 12
@@ -58,9 +59,22 @@ def forecast_chart(repository: Repository, filters: Filters) -> ForecastChart | 
     )
 
 
-def store_tile(repository: Repository, filters: Filters) -> StoreState | None:
-    """Kafelek Magazynu energii: stan z Faktury na koniec Okresu widoku; ``None`` bez Faktur
-    z Rozliczeniem OZE albo bez Faktury zakończonej do końca Okresu widoku."""
+@dataclass(frozen=True)
+class StoreTile:
+    """Kafelek Magazynu energii."""
+
+    state: StoreState
+    outlook: tuple[ExpiryOutlook, ...]
+    """Porcje wygasające wkrótce i ile z nich wygaśnie (szacunek)."""
+
+
+def store_tile(repository: Repository, filters: Filters) -> StoreTile | None:
+    """Kafelek Magazynu energii: stan z Faktury na koniec Okresu widoku i porcje wygasające
+    wkrótce; ``None`` bez Faktur z Rozliczeniem OZE albo bez Faktury zakończonej do końca
+    Okresu widoku."""
     dates = filters.view_period.dates
     store = EnergyStore.from_invoices(repository.list_invoices(filters.ppe_number))
-    return store.state_on(dates.end if dates is not None else date.max)
+    state = store.state_on(dates.end if dates is not None else date.max)
+    if state is None:
+        return None
+    return StoreTile(state, expiry_outlook(repository, filters.ppe_number, state))

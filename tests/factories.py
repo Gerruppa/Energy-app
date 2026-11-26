@@ -96,13 +96,14 @@ def store_invoice(
     number: str | None = None,
     exported: str | None = None,
     discount: str | None = None,
+    imported: str = "100",
 ) -> Invoice:
     """Faktura PPE ``HOME`` z ruchem w Magazynie energii: na start, przyrost (Energia oddana
-    × 0,8), na koniec; Rozliczenie OZE na stronie 4. Energia pobrana 100 kWh, z tego
+    × 0,8), na koniec; Rozliczenie OZE na stronie 4. Energia pobrana ``imported`` kWh, z tego
     ``discount`` kWh pokrył Magazyn energii (Opust; domyślnie na start + przyrost − na koniec),
     a reszta to energia czynna na Fakturze."""
     exported = exported or str(Decimal(credited) / Decimal("0.8"))
-    invoice = invoice_for(period, "100", exported, number=number)
+    invoice = invoice_for(period, imported, exported, number=number)
     assert invoice.energy_settlement is not None
     opust = (
         Decimal(discount)

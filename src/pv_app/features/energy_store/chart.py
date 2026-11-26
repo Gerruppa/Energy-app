@@ -5,6 +5,8 @@ kropkowana linia: przebieg w trakcie okresu jest nieznany. Porcje i ich Wygaśni
 szacunek modelu porcji (``domain/energy_store.py``).
 """
 
+from collections.abc import Collection
+
 import plotly.graph_objects as go
 
 from pv_app.domain.energy_store import MovementKind, Portion, StoreState
@@ -136,13 +138,13 @@ def _portion_hover(portion: Portion) -> str:
     return f"Szacunek: {fmt.kwh(portion.remaining_kwh)} {expires}<br>{origin}"
 
 
-def portions_figure(state: StoreState) -> go.Figure:
-    """Pasek porcji od najwcześniej wygasającej; porcje wygasające wkrótce na czerwono."""
+def portions_figure(state: StoreState, lost: Collection[Portion]) -> go.Figure:
+    """Pasek porcji od najwcześniej wygasającej; na czerwono porcje z ``lost``: te, z których
+    część wygaśnie (szacunek)."""
     figure = go.Figure()
     shade = 0
-    expiring = state.expiring
     for portion in state.portions:
-        urgent = portion in expiring
+        urgent = portion in lost
         color = CRITICAL if urgent else PORTION_SHADES[min(shade, len(PORTION_SHADES) - 1)]
         if not urgent:
             shade += 1

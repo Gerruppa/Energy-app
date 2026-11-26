@@ -17,6 +17,7 @@ from pv_app.features.base import FeatureContext
 from pv_app.features.energy_store.analysis import EnergyStoreView, energy_store_view
 from pv_app.features.energy_store.chart import portions_figure, store_figure
 from pv_app.features.navigation import open_invoice
+from pv_app.features.store_expiry import lost_portions, outlook_help, outlook_line
 from pv_app.features.terms import ESTIMATE_HELP, seller_share_help, store_help
 from pv_app.features.visibility import shows_energy_store
 from pv_app.storage.repository import Repository
@@ -74,8 +75,12 @@ def _render_state(view: EnergyStoreView, state: StoreState) -> None:
     )
     seller.caption("z Faktur w tabeli niżej (część Energii oddanej)")
     if state.portions:
-        st.plotly_chart(portions_figure(state), config={"displayModeBar": False})
+        st.plotly_chart(
+            portions_figure(state, lost_portions(view.outlook)), config={"displayModeBar": False}
+        )
         st.caption(" · ".join(_portion_text(p, state) for p in state.portions) + " (szacunek)")
+        for item in view.outlook:
+            st.caption(f"{outlook_line(item)} (szacunek)", help=outlook_help(item))
     with st.expander("Co to jest Magazyn energii?"):
         st.write(f"{store_help(coefficient)} {ESTIMATE_HELP}")
 

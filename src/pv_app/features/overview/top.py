@@ -11,12 +11,12 @@ from html import escape
 
 import streamlit as st
 
-from pv_app.domain.energy_store import EXPIRING_SOON_MONTHS, Portion, StoreState
+from pv_app.domain.energy_store import EXPIRING_SOON_MONTHS, Portion
 from pv_app.domain.invoice import SettlementBasis
 from pv_app.features import formatting as fmt
 from pv_app.features.base import FeatureContext
 from pv_app.features.navigation import invoice_href, open_import
-from pv_app.features.overview.analysis import store_tile
+from pv_app.features.overview.analysis import StoreTile, store_tile
 from pv_app.features.overview.tiles import (
     COST_AVERAGE_MONTHS,
     Balance,
@@ -30,6 +30,12 @@ from pv_app.features.overview.tiles import (
     last_invoice,
     next_payment,
     overpayment_signal,
+)
+from pv_app.features.store_expiry import (
+    ExpiryOutlook,
+    lost_portions,
+    outlook_help,
+    outlook_line,
 )
 from pv_app.features.terms import ESTIMATE_HELP, FORECAST_HELP, store_help
 
@@ -63,6 +69,10 @@ STYLE = """
   flex: none; }
 .pv-tank-legend b { font-variant-numeric: tabular-nums; }
 .pv-tank-legend li.urgent i { background: #c93c2e; }
+.pv-expiry { list-style: none; padding: 10px 0 0; margin: 10px 0 0; font-size: 13px;
+  border-top: 1px solid rgba(128,128,128,.35); }
+.pv-expiry li { margin: 0 0 4px; }
+.pv-expiry .pv-help { display: inline-block; vertical-align: top; }
 .pv-what { margin-top: 12px; font-size: 14px; }
 .pv-what summary { cursor: pointer; font-weight: 500; }
 .pv-what p { margin: 6px 0 0; max-width: 70ch; }
@@ -125,9 +135,9 @@ def render_top(context: FeatureContext, today: date) -> None:
     if last is not None:
         st.html(f'<div class="pv-top"><p class="pv-lede">{lede(last, context)}</p></div>')
     if context.metering_point.net_metering:
-        state = store_tile(repository, filters)
-        if state is not None:
-            st.html(f'<div class="pv-top">{_store_hero(state)}</div>')
+        tile = store_tile(repository, filters)
+        if tile is not None:
+            st.html(f'<div class="pv-top">{_store_hero(tile)}</div>')
     if last is None:
         return
     facts = [
@@ -312,15 +322,27 @@ def _portion_label(portion: Portion, urgent: bool) -> str:
     return f"{amount}&nbsp;{word} {fmt.day(portion.expires_on)}"
 
 
-def _store_hero(state: StoreState) -> str:
-    """Magazyn energii: stan z Faktury i pasek porcji od najwcześniej wygasającej."""
+def _expiry_list(outlook: tuple[ExpiryOutlook, ...]) -> str:
+    """Porcje wygasające wkrótce: zdanie o każdej z podpowiedzią „?” o wyliczeniu (HTML)."""
+    items = [
+        f"<li>{escape(outlook_line(item))} {_help('szacunek', outlook_help(item))}</li>"
+        for item in outlook
+    ]
+    return f'<ul class="pv-expiry">{"".join(items)}</ul>' if items else ""
+
+
+def _store_hero(tile: StoreTile) -> str:
+    """Magazyn energii: stan z Faktury, pasek porcji od najwcześniej wygasającej i zdanie
+    o każdej porcji wygasającej wkrótce."""
+    state = tile.state
+    lost = lost_portions(tile.outlook)
     movement = state.movement
     when = fmt.during(movement.period)
     portions = [p for p in state.portions if p.remaining_kwh > 0]
     segments, legend = [], []
     fade = 0
     for portion in portions:
-        urgent = portion in state.expiring
+        urgent = portion in lost
         if urgent:
             style = ""
         else:
@@ -357,9 +379,11 @@ def _store_hero(state: StoreState) -> str:
     </div>
   </div>
   {bar}
+  {_expiry_list(tile.outlook)}
   <details class="pv-what"><summary>Co to jest Magazyn energii?</summary>
     <p>{escape(store_help(movement.discount_coefficient))} Najpierw odbierana jest najstarsza
-    porcja. Czerwone, kreskowane: porcje, które wygasną w {EXPIRING_SOON_MONTHS} miesiące.
+    porcja. Czerwone, kreskowane: porcje, które wygasną w {EXPIRING_SOON_MONTHS} miesiące, zanim
+    zdążycie je odebrać (szacunek).
     {escape(ESTIMATE_HELP)}</p>
   </details>
 </section>"""
