@@ -33,5 +33,5 @@ if exist "%PTH%" (
 )
 
 echo Uruchamiam PV app. Zamknij to okno, aby zatrzymac aplikacje.
-"%UV%" run --frozen python -m pv_app
+"%UV%" run --frozen --no-dev python -m pv_app
 if errorlevel 1 pause

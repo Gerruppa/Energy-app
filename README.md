@@ -166,5 +166,6 @@ Faktura jest źródłem prawdy dla kwot, a eLicznik dla profilu godzinowego. Ka�
 - Stos: Python 3.14, Streamlit, SQLite, pdfplumber, Plotly; zależności przez uv ([ADR 0001](docs/adr/0001-python-streamlit-sqlite.md)).
 - Architektura i moduły: [docs/architecture.md](docs/architecture.md); decyzje: [docs/adr/](docs/adr/); budowa Faktur Tauron i pułapki parsowania: [docs/invoice-structure.md](docs/invoice-structure.md); zasady kodu: [CODING_STANDARDS.md](CODING_STANDARDS.md).
 - Testy: `uv run pytest`; typy i styl: `uv run mypy`, `uv run ruff check .`.
+- Kopia aplikacji do przeniesienia na inny komputer (bez testów, dokumentacji i danych): `uv run python scripts/build_app.py` tworzy folder `Builded app/`; wystarczy go skopiować i uruchomić w nim `Start.bat`.
 - Dane do oglądania bez ruszania `data/`: `uv run python scripts/seed_demo.py demo-data`, potem `uv run python -m pv_app --data-dir demo-data --port 8502`.
 - Repozytorium jest publiczne: testy używają wyłącznie syntetycznych fixture'ów, a hook `.githooks/pre-commit` (`git config core.hooksPath .githooks`) blokuje commit z danymi osobowymi.

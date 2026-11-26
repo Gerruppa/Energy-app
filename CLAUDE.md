@@ -32,8 +32,9 @@ Każde issue to osobna sesja zaczynana po `/clear`. Wszystko, czego sesja potrze
 5. Przy zmianach zakładek dashboardu uruchom podgląd „demo” (`.claude/launch.json`, dane z `scripts/seed_demo.py demo-data`) i porównaj z prototypem (wariant D). Strony narzędziowe (import, kreator, „Dane”, ustawienia) prototypu nie mają: sprawdza je test `AppTest` w `tests/`, a podgląd tylko wtedy, gdy zmienia się ich wygląd. Zmieniony kod wczytuje rerun w otwartej karcie (klawisz R); nowa karta dostaje kod sprzed zmiany. Przy zmianach wydruku uruchom `scripts/print_check.py`.
 6. Zaktualizuj dokumenty, które kod zmienił: status w `docs/roadmap.md`, nowe pojęcia w `GLOSSARY.md`, komendy w sekcji *Komendy* poniżej.
 7. Commit na `main` (hook sprawdza prywatność) z „Closes #N” w treści, push (zamyka issue). Na koniec komentarz w issue: co zrobiono i które kryteria akceptacji są spełnione.
+8. Odśwież kopię aplikacji na drugi komputer: `uv run python scripts/build_app.py` (po commicie, żeby `WERSJA.txt` wskazywała ten commit). Dotyczy każdej sesji, która zmieniła kod aplikacji, `Start.bat`, `pyproject.toml`, `uv.lock` albo `README.md`, także poza issue.
 
-Gotowe, gdy testy są zielone, commit jest wypchnięty, a każde kryterium akceptacji z issue jest spełnione albo opisane w komentarzu jako niezrobione z powodem. Praca spoza zakresu issue trafia do nowego issue (`needs-triage`), nie do tego commita.
+Gotowe, gdy testy są zielone, commit jest wypchnięty, folder `Builded app/` odświeżony, a każde kryterium akceptacji z issue jest spełnione albo opisane w komentarzu jako niezrobione z powodem. Praca spoza zakresu issue trafia do nowego issue (`needs-triage`), nie do tego commita.
 
 ## Komendy
 
@@ -41,6 +42,7 @@ Python i biblioteki zarządza `uv` (ADR 0001). Gdy `uv` nie jest w PATH (sesja o
 
 - Start aplikacji: dwuklik w `Start.bat` (przy pierwszym starcie instaluje uv i zależności) albo `uv run python -m pv_app`; adres `http://localhost:8501`.
 - Testy: `uv run pytest`; pojedynczy plik: `uv run pytest tests/test_repository.py`. Import na prawdziwych PDF-ach z `References/` (ok. 4–5 min, poza domyślnym zestawem; uruchamiaj w tle): `uv run pytest -m real_pdfs`.
+- Kopia aplikacji na inny komputer: `uv run python scripts/build_app.py [--target KATALOG]` buduje `Builded app/` (poza gitem): `Start.bat` (CRLF), `pyproject.toml`, `uv.lock`, `.python-version`, `README.md`, `src/` i `WERSJA.txt` z commitem. Przebudowa podmienia kod, a zostawia `data/` i `.venv/` tego folderu; folderu, którego skrypt nie zbudował, nie czyści. `Start.bat` uruchamia z `--no-dev`, więc na drugim komputerze nie instalują się narzędzia programisty.
 - Hook prywatności w nowej kopii repozytorium: `git config core.hooksPath .githooks`.
 - Wiersze PDF-a tak, jak widzi je parser: `uv run python scripts/dump_raw.py PLIK.pdf [--page N] [--grep WZORZEC] [--json SZKIELET.json]`; `--cells` pokazuje i zapisuje komórki tabel (stary układ).
 - Dane do oglądania ekranów bez ruszania `data/`: `uv run python scripts/seed_demo.py demo-data [--references]` (`--references`: PDF-y i Raporty wartości godzinowych xlsx), potem podgląd „demo” albo `uv run python -m pv_app --data-dir demo-data --port 8502 --no-browser`.

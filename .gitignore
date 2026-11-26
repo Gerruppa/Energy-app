@@ -17,3 +17,6 @@ __pycache__/
 
 # Dane do oglądania ekranów (scripts/seed_demo.py, podgląd „demo”)
 demo-data/
+
+# Kopia aplikacji na inny komputer (scripts/build_app.py)
+Builded app/
